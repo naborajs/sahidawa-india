@@ -3,7 +3,10 @@ from PIL import Image
 import pytesseract
 import io
 import logging
-
+#Added for the fuzz string matching 
+from pydantic import BaseModel
+from typing import List
+from services.matcher import find_matches
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,3 +57,26 @@ async def extract_text(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"OCR error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process image: {str(e)}")
+
+# For issue 17: Request payload validation schema
+class MatchRequest(BaseModel):
+    query: str
+    medicines: List[str]
+
+# Response validation schema
+class MatchResponse(BaseModel):
+    name: str
+    score: int
+
+@router.post("/match", response_model=List[MatchResponse])
+async def match_medicine(payload: MatchRequest):
+    """
+    Takes a messy OCR text string and matches it against a list of valid medicine names,
+    returning the top 3 closest matches based on Levenshtein distance.
+    """
+    try:
+        matches = find_matches(payload.query, payload.medicines)
+        return matches
+    except Exception as e:
+        logger.error(f"Fuzzy matching error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Fuzzy matching failed: {str(e)}")
