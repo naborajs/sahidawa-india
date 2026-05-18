@@ -89,7 +89,7 @@ export default function SahiDawaHome() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-emerald-200">
 
-      {/* ── Top Navigation ── */}
+{/* ── Top Navigation ── */}
       <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -106,7 +106,13 @@ export default function SahiDawaHome() {
 
           <div className="flex items-center gap-2 md:gap-4">
             <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-600" aria-label="Main navigation">
-              <button className="hover:text-emerald-600 transition-colors">
+              <button 
+                onClick={() => {
+                  const element = document.getElementById("how-it-works") || document.getElementById("features");
+                  element?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="hover:text-emerald-600 transition-colors"
+              >
                 {tNav("how_it_works")}
               </button>
               <Link href="/alerts" className="hover:text-emerald-600 transition-colors">
@@ -134,7 +140,6 @@ export default function SahiDawaHome() {
           </div>
         </div>
       </header>
-
       {/* ── Main ── */}
       <main className="container mx-auto px-4 pt-8 pb-24 md:pb-12 max-w-6xl">
 
