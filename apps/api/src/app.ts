@@ -38,7 +38,13 @@ import { errorHandler } from "./middleware/errorHandler";
 
 const app: Express = express();
 
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            connectSrc: ["'self'", process.env.SUPABASE_URL || ""],
+        },
+    },
+}));
 
 // Security: restrict CORS to known origins instead of wildcard
 const allowedOrigins = ["http://localhost:3000", "http://localhost:4000", "http://localhost:8000"];
