@@ -97,3 +97,4 @@
 | [#1190](https://github.com/RatLoopz/sahidawa-india/pull/1190) | 2026-06-03 | Backend | 8 | @anshul23102 | [View Doc](devtrack/2026-06/PR-1190-fix-lasa-add-ttl-cache-with-in-flight-deduplicatio.md) |
 | [#1189](https://github.com/RatLoopz/sahidawa-india/pull/1189) | 2026-06-03 | Backend | 9 | @anshul23102 | [View Doc](devtrack/2026-06/PR-1189-fix-pharmacies-add-post-api-pharmacies-with-licens.md) |
 | [#1160](https://github.com/RatLoopz/sahidawa-india/pull/1160) | 2026-06-03 | Frontend | 40 | @nimkarprachi17 | [View Doc](devtrack/2026-06/PR-1160-feat-verify-and-extend-pharmacy-asha-worker-map-wi.md) / [ADR](devtrack/adr/ADR-023-feat-verify-and-extend-pharmacy-asha-worker-map-wi.md) |
+| [#1237](https://github.com/RatLoopz/sahidawa-india/pull/1237) | 2026-06-04 | i18n | 27 | @saurabhhhcodes | [View Doc](devtrack/2026-06/PR-1237-fix-localize-alerts-log-and-compare-grid.md) / [ADR](devtrack/adr/ADR-024-fix-localize-alerts-log-and-compare-grid.md) |
