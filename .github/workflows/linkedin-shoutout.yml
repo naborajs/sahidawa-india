@@ -22,10 +22,12 @@ jobs:
         # ─────────────────────────────────────────────────────────────────────
         # GATE CONDITIONS (evaluated before any code runs):
         #   - PR must be merged (not just closed)
-        #   - PR must have level:advanced OR level:critical label
+        # Run only when PR is explicitly merged AND has the 'shoutout:approved' admin label
+        # AND has either level:advanced or level:critical
         # ─────────────────────────────────────────────────────────────────────
         if: |
             github.event.pull_request.merged == true &&
+            contains(github.event.pull_request.labels.*.name, 'shoutout:approved') &&
             (
               contains(github.event.pull_request.labels.*.name, 'level:advanced') ||
               contains(github.event.pull_request.labels.*.name, 'level:critical')
