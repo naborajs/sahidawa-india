@@ -133,7 +133,7 @@ def evaluate_pr_impact(pr: dict) -> None:
 
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"gemini-2.0-flash:generateContent?key={gemini_api_key}"
+        f"gemini-2.5-flash:generateContent?key={gemini_api_key}"
     )
     payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
@@ -163,7 +163,7 @@ def evaluate_pr_impact(pr: dict) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 def generate_post_with_gemini(pr: dict, tier_display: str, tier_desc: str) -> str:
     """
-    Calls Gemini 2.0 Flash to produce a unique, human-sounding LinkedIn post.
+    Calls Gemini 2.5 Flash to produce a unique, human-sounding LinkedIn post.
     High temperature = different text on every PR merge.
     Falls back to static template if API unavailable.
     """
@@ -199,7 +199,7 @@ def generate_post_with_gemini(pr: dict, tier_display: str, tier_desc: str) -> st
 
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"gemini-2.0-flash:generateContent?key={gemini_api_key}"
+        f"gemini-2.5-flash:generateContent?key={gemini_api_key}"
     )
     payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
