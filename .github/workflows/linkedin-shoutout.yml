@@ -8,11 +8,11 @@ name: "🎉 LinkedIn Contributor Shoutout"
 # ─────────────────────────────────────────────────────────────────────────────
 on:
     pull_request_target:
-        types: [closed]
+        types: [closed, labeled]
 
-# Minimal permissions — read-only on PR data. No write access needed.
+# Write permission on pull-requests needed to post celebratory comment.
 permissions:
-    pull-requests: read
+    pull-requests: write
     contents: read
 
 jobs:
@@ -31,6 +31,17 @@ jobs:
             (
               contains(github.event.pull_request.labels.*.name, 'level:advanced') ||
               contains(github.event.pull_request.labels.*.name, 'level:critical')
+            ) &&
+            (
+              github.event.action == 'closed' ||
+              (
+                github.event.action == 'labeled' &&
+                (
+                  github.event.label.name == 'shoutout:approved' ||
+                  github.event.label.name == 'level:advanced' ||
+                  github.event.label.name == 'level:critical'
+                )
+              )
             )
 
         runs-on: ubuntu-latest

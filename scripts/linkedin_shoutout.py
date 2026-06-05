@@ -136,7 +136,7 @@ def evaluate_pr_impact(pr: dict) -> None:
         f"gemini-2.0-flash:generateContent?key={gemini_api_key}"
     )
     payload = {
-        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"parts": [{"text": user_prompt}]}],
         "generationConfig": {"temperature": 0.0, "maxOutputTokens": 10},
     }
@@ -202,7 +202,7 @@ def generate_post_with_gemini(pr: dict, tier_display: str, tier_desc: str) -> st
         f"gemini-2.0-flash:generateContent?key={gemini_api_key}"
     )
     payload = {
-        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"parts": [{"text": user_prompt}]}],
         "generationConfig": {"temperature": 0.9, "maxOutputTokens": 400},
     }
