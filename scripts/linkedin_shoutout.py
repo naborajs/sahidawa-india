@@ -131,10 +131,45 @@ def check_if_commented(pr_number: str, comment_snippet: str) -> bool:
     return False
 
 
+def fetch_linkedin_from_github_profile(username: str) -> str:
+    token = os.environ.get("GH_TOKEN", "")
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+        
+    url = f"https://api.github.com/users/{username}/social_accounts"
+    try:
+        print(f"🔍 Checking GitHub profile social accounts for @{username}...")
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            accounts = resp.json()
+            for account in accounts:
+                if account.get("provider") == "linkedin":
+                    linkedin_url = account.get("url", "").strip()
+                    if linkedin_url:
+                        print(f"✅ Found LinkedIn URL on GitHub profile: {linkedin_url}")
+                        return linkedin_url
+        else:
+            print(f"⚠️ GitHub Social Accounts API returned status: {resp.status_code}")
+    except Exception as e:
+        print(f"⚠️ Failed to fetch GitHub social accounts: {e}")
+    return ""
+
+
 def validate_linkedin_url(pr: dict) -> str:
-    linkedin_url = extract_linkedin_url(pr.get("body", ""))
+    # 1. First try to fetch LinkedIn link dynamically from contributor's GitHub social accounts
+    linkedin_url = fetch_linkedin_from_github_profile(pr["author"])
+    
+    # 2. Fallback to PR description if not set on GitHub profile
     if not linkedin_url:
-        print("🛑 REJECTED: No LinkedIn Profile URL found in the PR description.")
+        print("🔍 LinkedIn URL not found on GitHub profile. Checking PR description...")
+        linkedin_url = extract_linkedin_url(pr.get("body", ""))
+        
+    if not linkedin_url:
+        print("🛑 REJECTED: No LinkedIn Profile URL found in GitHub profile or PR description.")
         print("   Without a LinkedIn URL, we cannot properly tag/mention the contributor.")
         print("   Exiting gracefully without triggering Make.com webhook.")
         
@@ -143,7 +178,8 @@ def validate_linkedin_url(pr: dict) -> str:
             comment_snippet = "Your PR is approved for a LinkedIn shoutout!"
             comment_text = (
                 f"👋 {comment_snippet}\n"
-                f"To get featured, please add your LinkedIn ID to the PR description like this:\n"
+                f"To get featured, please add your LinkedIn ID to your GitHub profile social links, "
+                f"or to the PR description like this:\n"
                 f"`LinkedIn: https://linkedin.com/in/your-username`"
             )
             if not check_if_commented(pr_number, comment_snippet):
@@ -156,6 +192,7 @@ def validate_linkedin_url(pr: dict) -> str:
                 f.write("shoutout_status=skipped\n")
         
         sys.exit(0)
+        
     print(f"✅ Found LinkedIn URL: {linkedin_url}")
     return linkedin_url
 
