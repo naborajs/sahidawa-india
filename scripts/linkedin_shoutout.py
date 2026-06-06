@@ -399,7 +399,7 @@ def send_to_make_webhook(post_text: str, pr: dict) -> None:
         
     # Use TinyURL to bypass Make.com's strict/buggy URL validation and double-encoding
     try:
-        req = urllib.request.Request(f"https://tinyurl.com/api-create.php?url={urllib.parse.quote(raw_image_url, safe='=&?/:')}")
+        req = urllib.request.Request(f"https://tinyurl.com/api-create.php?url={urllib.parse.quote(raw_image_url, safe='=&?/:%')}")
         with urllib.request.urlopen(req) as response:
             image_url = response.read().decode('utf-8')
     except Exception as e:
