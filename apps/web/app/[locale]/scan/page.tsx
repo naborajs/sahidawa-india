@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { SkeletonLoader } from "@/components/scanner/SkeletonLoader";
+import imageCompression from "browser-image-compression";
 import {
     Camera,
     ShieldCheck,
@@ -44,7 +45,6 @@ import {
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { useTranslations } from "next-intl";
 import { buildVerificationShareText, type VerificationShareCopy } from "@/lib/verificationShare";
-
 import {
     buildLocalScanHistoryEntry,
     saveLocalScanHistoryEntry,
@@ -52,14 +52,14 @@ import {
     type LocalScanHistorySource,
 } from "@/lib/localScanHistory";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { structuredLog } from "@/lib/structuredLogger";
+
 type ScanHistoryContext = Omit<
     BuildLocalScanHistoryEntryOptions,
     "id" | "scannedAt" | "result" | "errorMessage"
 >;
 
 import { saveScanHistory } from "@/lib/db/scanHistory";
-
-import { structuredLog } from "@/lib/structuredLogger";
 
 function formatExpiryForBadge(isoDate: string | null | undefined): string | undefined {
     if (!isoDate) return undefined;
@@ -211,8 +211,8 @@ function VerifiedSafeResult({
                                 {medicine.batch_number}
                             </span>
                             <CopyButton
-                                text={medicine.batch_number}
-                                toastMessage="Batch number copied!"
+                                text={formatMedicineDetails(medicine)}
+                                toastMessage="Medicine Details copied!"
                             />
                         </div>
                     </div>
@@ -530,9 +530,7 @@ export default function ScanPage() {
     const ocrCancelledRef = useRef(false);
 
     // Auto-retry when coming back online
-    const handleVerifyRef = useRef<
-        (batch: string, source?: LocalScanHistorySource) => Promise<void>
-    >(null as any);
+    const handleVerifyRef = useRef<(batch: string) => Promise<void>>(null as any);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -549,16 +547,22 @@ export default function ScanPage() {
         return () => {
             isMountedRef.current = false;
             ocrCancelledRef.current = true;
-            if (ocrWorkerRef.current) {
-                ocrWorkerRef.current.terminate();
-                ocrWorkerRef.current = null;
-            }
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
             unregisterRetryCallback(autoRetry);
         };
     }, [showResult, verifyError, batchInput, registerRetryCallback, unregisterRetryCallback]);
+
+    useEffect(() => {
+        return () => {
+            console.log("Tesseract worker terminated on ScanPage unmount");
+            if (ocrWorkerRef.current) {
+                ocrWorkerRef.current.terminate();
+                ocrWorkerRef.current = null;
+            }
+        };
+    }, []);
 
     // LASA Check State
     const [lasaMatches, setLasaMatches] = useState<LasaMatch[]>([]);
@@ -578,26 +582,9 @@ export default function ScanPage() {
         unknownManufacturer: tScan("share.unknown_manufacturer"),
     };
 
-    const processVerificationResult = async (result: VerifyResult, fallbackBrandName?: string) => {
-        if (!result.verified) {
-            setVerifyResult(result);
-
-            void saveScanHistory({
-                id: crypto.randomUUID(),
-                timestamp: Date.now(),
-                medicineName: getScanHistoryMedicineName(result, fallbackBrandName),
-                status: getScanHistoryStatus(result),
-            }).catch((error) => {
-                console.error("Failed to save scan history:", error);
-            });
-
-            setShowResult(true);
-
-            return;
-        }
-        try {
-            const medicineName = result.medicine.brand_name || fallbackBrandName;
-            if (!medicineName) {
+    const processVerificationResult = useCallback(
+        async (result: VerifyResult, fallbackBrandName?: string) => {
+            if (!result.verified) {
                 setVerifyResult(result);
 
                 void saveScanHistory({
@@ -613,13 +600,46 @@ export default function ScanPage() {
 
                 return;
             }
-            const lasaRes = await checkLasaConflicts(medicineName);
-            if (lasaRes.hasConflicts && lasaRes.matches.length > 0) {
-                setLasaMatches(lasaRes.matches);
-                setPendingVerifyResult(result);
-                setShowLasaConfirmation(true);
-                setShowResult(true);
-            } else {
+            try {
+                const medicineName = result.medicine.brand_name || fallbackBrandName;
+                if (!medicineName) {
+                    setVerifyResult(result);
+
+                    void saveScanHistory({
+                        id: crypto.randomUUID(),
+                        timestamp: Date.now(),
+                        medicineName: getScanHistoryMedicineName(result, fallbackBrandName),
+                        status: getScanHistoryStatus(result),
+                    }).catch((error) => {
+                        console.error("Failed to save scan history:", error);
+                    });
+
+                    setShowResult(true);
+
+                    return;
+                }
+                const lasaRes = await checkLasaConflicts(medicineName);
+                if (lasaRes.hasConflicts && lasaRes.matches.length > 0) {
+                    setLasaMatches(lasaRes.matches);
+                    setPendingVerifyResult(result);
+                    setShowLasaConfirmation(true);
+                    setShowResult(true);
+                } else {
+                    setVerifyResult(result);
+
+                    void saveScanHistory({
+                        id: crypto.randomUUID(),
+                        timestamp: Date.now(),
+                        medicineName: getScanHistoryMedicineName(result, fallbackBrandName),
+                        status: getScanHistoryStatus(result),
+                    }).catch((error) => {
+                        console.error("Failed to save scan history:", error);
+                    });
+
+                    setShowResult(true);
+                }
+            } catch (error) {
+                console.error("LASA check error:", error);
                 setVerifyResult(result);
 
                 void saveScanHistory({
@@ -627,28 +647,15 @@ export default function ScanPage() {
                     timestamp: Date.now(),
                     medicineName: getScanHistoryMedicineName(result, fallbackBrandName),
                     status: getScanHistoryStatus(result),
-                }).catch((error) => {
-                    console.error("Failed to save scan history:", error);
+                }).catch((historyError) => {
+                    console.error("Failed to save scan history:", historyError);
                 });
 
                 setShowResult(true);
             }
-        } catch (error) {
-            console.error("LASA check error:", error);
-            setVerifyResult(result);
-
-            void saveScanHistory({
-                id: crypto.randomUUID(),
-                timestamp: Date.now(),
-                medicineName: getScanHistoryMedicineName(result, fallbackBrandName),
-                status: getScanHistoryStatus(result),
-            }).catch((historyError) => {
-                console.error("Failed to save scan history:", historyError);
-            });
-
-            setShowResult(true);
-        }
-    };
+        },
+        []
+    );
 
     const handleConfirmScanned = () => {
         if (pendingVerifyResult) {
@@ -683,22 +690,20 @@ export default function ScanPage() {
             const brandRes = await verifyMedicineByBrand(conflictName, controller.signal);
             if (!isMountedRef.current || controller.signal.aborted) return;
             setParsedBrand(conflictName);
-            await processVerificationResult(brandRes, conflictName, {
-                query: conflictName,
-                source: "manual",
-                fallbackBrandName: conflictName,
-            });
+            await processVerificationResult(brandRes, conflictName);
         } catch (err) {
             if (!isMountedRef.current || controller.signal.aborted) return;
             const errorMsg = err instanceof Error ? err.message : "Verification failed";
             if (errorMsg === "Request was cancelled.") {
                 return;
             }
-            recordScanHistory({
-                query: conflictName,
-                source: "manual",
-                fallbackBrandName: conflictName,
-                errorMessage: errorMsg,
+            void saveScanHistory({
+                id: crypto.randomUUID(),
+                timestamp: Date.now(),
+                medicineName: conflictName,
+                status: "SUSPICIOUS",
+            }).catch((error) => {
+                console.error("Failed to save scan history:", error);
             });
             setVerifyError(errorMsg);
             setShowResult(true);
@@ -710,7 +715,7 @@ export default function ScanPage() {
     };
 
     const handleVerify = useCallback(
-        async (batch: string, source: LocalScanHistorySource = "manual") => {
+        async (batch: string) => {
             if (!batch.trim()) {
                 toast.error("Please enter a batch number to verify");
                 return;
@@ -731,23 +736,13 @@ export default function ScanPage() {
             try {
                 const result = await verifyMedicine(normalizedBatch, controller.signal);
                 if (!isMountedRef.current || controller.signal.aborted) return;
-                await processVerificationResult(result, undefined, {
-                    query: normalizedBatch,
-                    source,
-                    fallbackBatchNumber: normalizedBatch,
-                });
+                await processVerificationResult(result, undefined);
             } catch (err) {
                 if (!isMountedRef.current || controller.signal.aborted) return;
                 const errorMsg = err instanceof Error ? err.message : "Verification failed";
                 if (errorMsg === "Request was cancelled.") {
                     return;
                 }
-                recordScanHistory({
-                    query: normalizedBatch,
-                    source,
-                    fallbackBatchNumber: normalizedBatch,
-                    errorMessage: errorMsg,
-                });
                 setVerifyError(errorMsg);
                 void saveScanHistory({
                     id: crypto.randomUUID(),
@@ -764,7 +759,7 @@ export default function ScanPage() {
                 }
             }
         },
-        [processVerificationResult, recordScanHistory]
+        [processVerificationResult]
     );
 
     // Keep handleVerifyRef current
@@ -792,15 +787,31 @@ export default function ScanPage() {
     }, [verifyResult]);
 
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    const COMPRESSION_THRESHOLD = 2 * 1024 * 1024;
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        let processedFile = file;
+
         if (file.size > MAX_FILE_SIZE) {
             toast.error("File exceeds 10MB limit");
             e.target.value = "";
             return;
+        }
+
+        if (file.size > COMPRESSION_THRESHOLD) {
+            try {
+                processedFile = await imageCompression(file, {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1920,
+                    useWebWorker: true,
+                });
+            } catch {
+                toast.error("Failed to compress image");
+                return;
+            }
         }
 
         const reader = new FileReader();
@@ -809,7 +820,7 @@ export default function ScanPage() {
             dataUrl = await new Promise<string>((resolve, reject) => {
                 reader.onloadend = () => resolve(reader.result as string);
                 reader.onerror = () => reject(new Error("Failed to read image file"));
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(processedFile);
             });
         } catch {
             toast.error("Could not read the image file. Please try again.");
@@ -866,7 +877,7 @@ export default function ScanPage() {
                     setBatchInput(barcodeText);
                     setOcrStatus("done");
                     toast.success(`Barcode detected: ${barcodeText} — verifying…`);
-                    await handleVerify(barcodeText, "photo");
+                    await handleVerify(barcodeText);
                     return;
                 }
             } catch (error) {
@@ -998,14 +1009,7 @@ export default function ScanPage() {
                 }
                 await processVerificationResult(
                     { verified: true, medicine: updatedMedicine },
-                    parsedBrand,
-                    {
-                        query: parsedBatchNum || medName || "Uploaded photo",
-                        source: "photo",
-                        fallbackBrandName: parsedBrand || medName || undefined,
-                        fallbackBatchNumber: parsedBatchNum || undefined,
-                        fallbackExpiryDate: parsedExpiryStr ? expiryToIso(parsedExpiryStr) : null,
-                    }
+                    parsedBrand
                 );
             } else {
                 const unverifiedResult =
@@ -1014,16 +1018,10 @@ export default function ScanPage() {
                         verified: false,
                         message: "No match found in CDSCO Database",
                     } satisfies VerifyResult);
-                recordScanHistory({
-                    query: parsedBatchNum || medName || "Uploaded photo",
-                    source: "photo",
-                    result: unverifiedResult,
-                    fallbackBrandName: parsedBrand || medName || undefined,
-                    fallbackBatchNumber: parsedBatchNum || undefined,
-                    fallbackExpiryDate: parsedExpiryStr ? expiryToIso(parsedExpiryStr) : null,
-                });
-                setVerifyResult(unverifiedResult);
-                setShowResult(true);
+                await processVerificationResult(
+                    unverifiedResult,
+                    parsedBrand || medName || undefined
+                );
             }
         } catch (err) {
             if (!isMountedRef.current || controller.signal.aborted || ocrCancelledRef.current)
@@ -1040,28 +1038,26 @@ export default function ScanPage() {
                 setVerifyError(
                     "The scan took too long. Please ensure the image is clear and try again."
                 );
-                recordScanHistory({
-                    query: parsedBatch || parsedBrand || "Uploaded photo",
-                    source: "photo",
-                    fallbackBrandName: parsedBrand,
-                    fallbackBatchNumber: parsedBatch,
-                    fallbackExpiryDate: parsedExpiry ? expiryToIso(parsedExpiry) : null,
-                    errorMessage:
-                        "The scan took too long. Please ensure the image is clear and try again.",
+                void saveScanHistory({
+                    id: crypto.randomUUID(),
+                    timestamp: Date.now(),
+                    medicineName: parsedBrand || parsedBatch || "Unknown Medicine",
+                    status: "SUSPICIOUS",
+                }).catch((error) => {
+                    console.error("Failed to save scan history:", error);
                 });
             } else {
                 toast.error("Failed to extract text from image.");
                 setVerifyError(
                     "Unable to read text from this image. Please try a clearer photo or enter the batch number manually."
                 );
-                recordScanHistory({
-                    query: parsedBatch || parsedBrand || "Uploaded photo",
-                    source: "photo",
-                    fallbackBrandName: parsedBrand,
-                    fallbackBatchNumber: parsedBatch,
-                    fallbackExpiryDate: parsedExpiry ? expiryToIso(parsedExpiry) : null,
-                    errorMessage:
-                        "Unable to read text from this image. Please try a clearer photo or enter the batch number manually.",
+                void saveScanHistory({
+                    id: crypto.randomUUID(),
+                    timestamp: Date.now(),
+                    medicineName: parsedBrand || parsedBatch || "Unknown Medicine",
+                    status: "SUSPICIOUS",
+                }).catch((error) => {
+                    console.error("Failed to save scan history:", error);
                 });
             }
             setOcrStatus("error");
@@ -1072,31 +1068,21 @@ export default function ScanPage() {
             }
         }
     };
-    const handleCameraPermissionDenied = useCallback(() => {
-        setIsCameraActive(false);
-        toast.error("Camera access denied. Please enter batch number manually.", {
-            duration: 4000,
-        });
-        // Auto focus batch input
-        setTimeout(() => {
-            const input = document.querySelector(
-                'input[placeholder="Enter batch number"]'
-            ) as HTMLInputElement;
-            input?.focus();
-        }, 300);
-    }, []);
-    const handleBarcodeScan = async (scannedText: string) => {
-        setIsVerifying(true);
-        setApiError(null);
+    const handleBarcodeScan = useCallback(
+        async (scannedText: string) => {
+            setIsVerifying(true);
+            setApiError(null);
 
-        try {
-            await handleVerify(scannedText);
-        } catch (error: any) {
-            setApiError(error.message || "Failed to verify medicine with CDSCO.");
-        } finally {
-            setIsVerifying(false);
-        }
-    };
+            try {
+                await handleVerify(scannedText);
+            } catch (error: any) {
+                setApiError(error.message || "Failed to verify medicine with CDSCO.");
+            } finally {
+                setIsVerifying(false);
+            }
+        },
+        [handleVerify]
+    );
 
     const handleScanAgain = async () => {
         if (ocrWorkerRef.current) {
@@ -1166,7 +1152,7 @@ export default function ScanPage() {
 
     const handleBatchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        handleVerify(batchInput, "manual");
+        handleVerify(batchInput);
     };
 
     return (
