@@ -45,3 +45,17 @@ export async function deleteScanHistory(id: string) {
 
     await db.delete(STORE_NAME, id);
 }
+
+export async function clearScanHistory() {
+    const db = await getDb();
+
+    await db.clear(STORE_NAME);
+}
+
+export async function saveScanHistoryEntries(entries: ScanHistoryEntry[]) {
+    const db = await getDb();
+
+    for (const entry of entries) {
+        await db.put(STORE_NAME, entry);
+    }
+}
