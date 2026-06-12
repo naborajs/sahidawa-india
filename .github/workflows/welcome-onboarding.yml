@@ -1,8 +1,6 @@
 name: 🌟 First-Time Contributor Onboarding Welcome
 
 on:
-    issues:
-        types: [opened]
     pull_request:
         types: [opened]
 

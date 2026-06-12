@@ -277,30 +277,20 @@ jobs:
             const deadline    = new Date(Date.now() + maxDays * 24 * 60 * 60 * 1000);
             const deadlineStr = deadline.toUTCString().replace(' GMT', ' UTC');
 
-            // ── 2e. Post confirmation comment ───────────────────────────────
             await github.rest.issues.createComment({
               owner: repo.owner, repo: repo.repo, issue_number: issueNumber,
               body: [
-                '## \u2705 Assigned \u2014 Issue #' + issueNumber,
+                `Hi @${commenter}! 🎉 You've been assigned to this issue.`,
                 '',
-                'Hi @' + commenter + '! \uD83C\uDF89 You\'ve been assigned to this issue.',
+                `**Difficulty:** ${levelEmoji} \`${level}\``,
+                `**Deadline:** ${maxDays} days from now (\`${deadlineStr}\`)`,
                 '',
-                '| Field | Details |',
-                '|-------|---------|',
-                '| **Level** | ' + levelEmoji + ' `' + level + '` |',
-                '| **Deadline** | **' + maxDays + ' days** \u2192 `' + deadlineStr + '` |',
-                '| **Warning at** | ' + warnDays + ' day' + (warnDays > 1 ? 's' : '') + ' of inactivity |',
+                '**Activity Rules:**',
+                '- To keep your assignment active, please drop a progress comment or open a Draft PR linking to this issue.',
+                `- After ${maxDays} days of inactivity, you will be automatically unassigned.`,
                 '',
-                '**To keep your assignment active, do at least one of:**',
-                '- \uD83D\uDCAC Post a progress update comment on this issue',
-                '- \uD83D\uDD27 Open a Draft PR with `Closes #' + issueNumber + '` in the description',
+                '> ⚠️ **Note:** Please search for similar open/closed issues and PRs before coding to avoid duplicate work.',
                 '',
-                'After **' + maxDays + ' days** of no activity the bot will automatically unassign you',
-                'and open this issue for other contributors.',
-                '',
-                '> \u26a0\ufe0f **Before you start coding:** search for similar open/closed issues and PRs.',
-                '> Duplicate PRs are closed without merge \u2014 even after all your hard work.',
-                '',
-                'Good luck! \uD83E\uDE7A\uD83C\uDDEE\uD83C\uDDF3'
+                'Happy coding! 🚀'
               ].join('\n')
             });
