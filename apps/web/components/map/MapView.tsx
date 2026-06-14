@@ -34,8 +34,8 @@ const Marker = dynamic(() => import("react-leaflet").then((m) => m.Marker), { ss
 const Popup = dynamic(() => import("react-leaflet").then((m) => m.Popup), { ssr: false });
 
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { greenIcon, blueIcon } from "./mapIcons";
 
 // Fix default marker icon broken in webpack
 const greenIcon = L.icon({
