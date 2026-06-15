@@ -149,10 +149,15 @@ export default function Navbar() {
     const handleSignOut = async () => {
         setIsProfileOpen(false);
         setIsMenuOpen(false);
-        const supabase = createBrowserClient(getSupabaseUrl(), getSupabaseAnonKey());
-        await supabase.auth.signOut();
-        localStorage.removeItem("sb-access-token");
-        window.location.href = "/";
+        try {
+            const supabase = createBrowserClient(getSupabaseUrl(), getSupabaseAnonKey());
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.error("Logout error:", error);
+        } finally {
+            localStorage.removeItem("sb-access-token");
+            window.location.href = "/";
+        }
     };
 
     useEffect(() => {
