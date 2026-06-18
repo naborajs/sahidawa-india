@@ -1,7 +1,5 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
-import FormData from "form-data";
-import fetch from "node-fetch";
 import { createClient } from "redis";
 import { supabase } from "../db/client";
 import { scanQueryLimiter } from "../middleware/rateLimit";
@@ -47,17 +45,14 @@ router.post(
                 return res.status(400).json({ success: false, error: "No audio file provided." });
             }
 
-            // Forward audio to Python FastAPI ML service
             const form = new FormData();
-            form.append("audio", req.file.buffer, {
-                filename: "recording.webm",
-                contentType: req.file.mimetype,
-            });
+            const audioBytes = Uint8Array.from(req.file.buffer);
+            const audioBlob = new Blob([audioBytes], { type: req.file.mimetype });
+            form.append("audio", audioBlob, "recording.webm");
 
             const mlResponse = await fetch(`${ML_SERVICE_URL}/voice/verify`, {
                 method: "POST",
                 body: form,
-                headers: form.getHeaders(),
             });
 
             if (!mlResponse.ok) {
