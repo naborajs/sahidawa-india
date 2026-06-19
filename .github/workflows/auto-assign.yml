@@ -59,7 +59,7 @@ jobs:
             if (context.payload.comment.user.type === 'Bot') return;
 
             // Check if it's an explicit /assign request
-            const requestKeywords = ['/assign', 'please assign', 'assign me'];
+            const requestKeywords = ['/assign', 'please assign', 'assign me', 'can i work', 'i want to work', 'assign this to me', 'would like to work on this'];
             const isRequest = requestKeywords.some(kw => commentBody.toLowerCase().includes(kw));
             
             if (!isRequest) return;
@@ -75,6 +75,21 @@ jobs:
               }
             } catch (err) {
               core.warning('Could not check permissions for @' + commenter + ': ' + err.message);
+            }
+
+            // Fetch issue early to check unassigned status
+            const issueData = await github.rest.issues.get({ owner: repo.owner, repo: repo.repo, issue_number: issueNumber });
+            const currentAssignees = (issueData.data.assignees || []).map(a => a.login);
+            const isUnassigned = currentAssignees.length === 0;
+            const issueAuthor = issueData.data.user.login;
+
+            // Already assigned to this same person?
+            if (currentAssignees.includes(commenter)) {
+              await github.rest.issues.createComment({
+                owner: repo.owner, repo: repo.repo, issue_number: issueNumber,
+                body: `@${commenter}, you are already assigned to this issue. Please continue working on it.`
+              });
+              return;
             }
 
             // ── Enforce 3-issue cap early ─────────────────────────────────────
@@ -159,12 +174,6 @@ jobs:
               return;
             }
 
-            // Fetch issue early to check unassigned status
-            const issueData = await github.rest.issues.get({ owner: repo.owner, repo: repo.repo, issue_number: issueNumber });
-            const currentAssignees = (issueData.data.assignees || []).map(a => a.login);
-            const isUnassigned = currentAssignees.length === 0;
-            const issueAuthor = issueData.data.user.login;
-
             core.info('Audit trigger: @' + commenter + ' attempting assignment on #' + issueNumber);
 
             // ── Block assignment if the issue was created by a Maintainer/Owner ──
@@ -217,15 +226,6 @@ jobs:
                   `@${commenter}, this issue is currently assigned to ${takenBy}.`,
                   'If they do not show activity within their deadline, they will be unassigned and the issue will become available.'
                 ].join('\n')
-              });
-              return;
-            }
-
-            // Already assigned to this same person?
-            if (currentAssignees.includes(commenter)) {
-              await github.rest.issues.createComment({
-                owner: repo.owner, repo: repo.repo, issue_number: issueNumber,
-                body: `@${commenter}, you are already assigned to this issue.`
               });
               return;
             }
