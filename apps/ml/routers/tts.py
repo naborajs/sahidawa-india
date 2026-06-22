@@ -140,7 +140,7 @@ class TTSResponse(BaseModel):
 
 
 def get_cache_key(text: str, language_code: str, gender: str) -> str:
-    """Generate cache key from text, language and gender"""
+    """Generate cache key from text, language, and gender"""
     combined = f"{text}:{language_code}:{gender}"
     return hashlib.md5(combined.encode()).hexdigest()
 
