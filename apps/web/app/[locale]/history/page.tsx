@@ -11,10 +11,8 @@ import {
 } from "@/lib/db/scanHistory";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { ClipboardList, Download, RefreshCw, Trash2 } from "lucide-react";
-import ExportModal from "./ExportModal";
 import { syncScanHistoryWithCloud } from "@/lib/scanHistoryCloudSync";
 import { EmptyState } from "@/components/ui/EmptyState";
-
 
 export default function HistoryPage() {
     const [history, setHistory] = useState<ScanHistoryEntry[]>([]);

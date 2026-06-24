@@ -32,7 +32,6 @@ import {
     queueReport,
     getPendingCount,
 } from "@/lib/offlineStorage";
-import { initBackgroundSync } from "@/lib/backgroundSync";
 
 // ─── Cloudinary env ────────────────────────────────────────────────────────────
 // Uploads are now securely routed through our backend API (/api/upload),
@@ -652,10 +651,8 @@ function Step3() {
         // Step 2: Debouncing - Wait 500ms after last keystroke
         const timer = setTimeout(async () => {
             try {
-                // Cast to any to access optional address fields (city, state) returned by the API
-                const geo = (await geocodePincode(pincode)) as any;
+                const geo = await geocodePincode(pincode);
                 if (geo) {
-                    // Auto-populate City and State
                     if (geo.city) setValue("city", geo.city, { shouldValidate: true });
                     if (geo.state) setValue("state", geo.state, { shouldValidate: true });
                 }
@@ -875,16 +872,16 @@ export default function ReportWizard() {
         if (medicineId) setValue("medicineId", medicineId);
     }, [searchParams, setValue]);
 
-    // Background sync of queued offline reports
+    // Initialize pending count and listen for global sync events
     useEffect(() => {
-        const cleanup = initBackgroundSync((count) => {
-            toast.success(
-                `${count} pending report${count > 1 ? "s" : ""} submitted now that you're back online.`
-            );
-            setPendingCount((c) => Math.max(0, c - count));
-        });
         void getPendingCount().then(setPendingCount);
-        return cleanup;
+
+        const handleSynced = (e: Event) => {
+            const count = (e as CustomEvent).detail?.count || 0;
+            setPendingCount((c) => Math.max(0, c - count));
+        };
+        window.addEventListener("reports-synced", handleSynced);
+        return () => window.removeEventListener("reports-synced", handleSynced);
     }, []);
 
     // Autosave draft as the user fills the form (skip until initial restore is done)
