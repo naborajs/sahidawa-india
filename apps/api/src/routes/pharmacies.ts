@@ -1201,10 +1201,13 @@ router.delete(
                 return;
             }
 
-            // Soft delete by updating status
+            // Soft delete by updating active state and deletion timestamp
             const { error: deleteError } = await supabase
                 .from("pharmacies")
-                .update({ status: "rejected" })
+                .update({
+                    is_active: false,
+                    deleted_at: new Date().toISOString(),
+                })
                 .eq("id", pharmacyId);
 
             if (deleteError) {
