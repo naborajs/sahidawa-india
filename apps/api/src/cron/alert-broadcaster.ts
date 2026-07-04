@@ -543,11 +543,15 @@ export function startAlertBroadcaster(): { stop: () => void } {
 
     // Run initial execution after a short delay
     setTimeout(() => {
-        void checkAndBroadcastAll();
+        checkAndBroadcastAll().catch((err) => {
+            logger.error("Alert broadcaster: unhandled error during scheduled run", { error: err });
+        });
     }, 2000);
 
     intervalId = setInterval(() => {
-        void checkAndBroadcastAll();
+        checkAndBroadcastAll().catch((err) => {
+            logger.error("Alert broadcaster: unhandled error during scheduled run", { error: err });
+        });
     }, CHECK_INTERVAL_MS);
 
     return { stop: stopAlertBroadcaster };
