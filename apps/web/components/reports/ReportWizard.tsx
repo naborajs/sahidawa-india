@@ -6,6 +6,7 @@
  * Tech: React Hook Form · Zod · @hookform/resolvers · Framer Motion · Tailwind CSS
  * Design: SahiDawa modern aesthetic — emerald accents, deep navy header, rounded corners
  */
+import { enqueueReport } from "@/lib/offline/queue";
 import { handleApiError } from "@/lib/apiErrorHandler";
 import React, { useState, useEffect, useId, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
@@ -91,6 +92,13 @@ const EMPTY: FormValues = {
     scannedBarcode: undefined,
     medicineId: undefined,
 };
+
+function handleInputFocus(event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    event.currentTarget.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+    });
+}
 
 // ─── Per-step field keys ────────────────────────────────────────────────────────
 const STEP_KEYS: Record<number, (keyof FormValues)[]> = {
@@ -395,6 +403,7 @@ function Step1() {
                 <input
                     {...register("medicineName")}
                     placeholder={t("wizard.step1.medicineName.placeholder")}
+                    onFocus={handleInputFocus}
                     className={inp(!!errors.medicineName)}
                     aria-invalid={errors.medicineName ? "true" : undefined}
                     aria-describedby={errors.medicineName ? medicineNameErrorId : undefined}
@@ -406,6 +415,7 @@ function Step1() {
                 <input
                     {...register("manufacturer")}
                     placeholder={t("wizard.step1.manufacturer.placeholder")}
+                    onFocus={handleInputFocus}
                     className={inp(!!errors.manufacturer)}
                     aria-invalid={errors.manufacturer ? "true" : undefined}
                     aria-describedby={errors.manufacturer ? manufacturerErrorId : undefined}
@@ -416,6 +426,7 @@ function Step1() {
                 <FL req>{t("wizard.step1.description.label")}</FL>
                 <textarea
                     {...register("description")}
+                    onFocus={handleInputFocus}
                     rows={4}
                     placeholder={t("wizard.step1.description.placeholder")}
                     className={`${inp(!!errors.description)} resize-none`}
@@ -675,6 +686,7 @@ function Step3() {
                 <input
                     {...register("pharmacyName")}
                     placeholder={t("wizard.step3.pharmacyName.placeholder")}
+                    onFocus={handleInputFocus}
                     className={inp(!!errors.pharmacyName)}
                     aria-invalid={errors.pharmacyName ? "true" : undefined}
                     aria-describedby={errors.pharmacyName ? pharmacyNameErrorId : undefined}
@@ -686,6 +698,7 @@ function Step3() {
                 <input
                     {...register("address")}
                     placeholder={t("wizard.step3.address.placeholder")}
+                    onFocus={handleInputFocus}
                     className={inp(!!errors.address)}
                     aria-invalid={errors.address ? "true" : undefined}
                     aria-describedby={errors.address ? addressErrorId : undefined}
@@ -698,6 +711,7 @@ function Step3() {
                     <input
                         {...register("city")}
                         placeholder={t("wizard.step3.city.placeholder")}
+                        onFocus={handleInputFocus}
                         className={inp(!!errors.city)}
                         aria-invalid={errors.city ? "true" : undefined}
                         aria-describedby={errors.city ? cityErrorId : undefined}
@@ -709,6 +723,7 @@ function Step3() {
                     <input
                         {...register("state")}
                         placeholder={t("wizard.step3.state.placeholder")}
+                        onFocus={handleInputFocus}
                         className={inp(!!errors.state)}
                         aria-invalid={errors.state ? "true" : undefined}
                         aria-describedby={errors.state ? stateErrorId : undefined}
@@ -721,6 +736,7 @@ function Step3() {
                 <input
                     {...register("pincode")}
                     placeholder={t("wizard.step3.pincode.placeholder")}
+                    onFocus={handleInputFocus}
                     maxLength={6}
                     inputMode="numeric"
                     className={inp(!!errors.pincode)}
@@ -825,6 +841,7 @@ export default function ReportWizard() {
     const [step, setStep] = useState(1);
     const [dir, setDir] = useState(1);
     const [images, setImages] = useState<ImageEntry[]>([]);
+    const stepContentRef = useRef<HTMLDivElement | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [submitErr, setSubmitErr] = useState<string | null>(null);
     const [done, setDone] = useState(false);
@@ -915,6 +932,19 @@ export default function ReportWizard() {
         return () => clearTimeout(timer);
     }, [JSON.stringify(watchedValues), step, images, restoredDraft, done]);
 
+    useEffect(() => {
+        const target = stepContentRef.current;
+        if (!target) return;
+
+        const focusable = target.querySelector<HTMLElement>(
+            'input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+
+        if (focusable) {
+            requestAnimationFrame(() => focusable.focus());
+        }
+    }, [step]);
+
     // Navigation
     const next = async () => {
         if (!(await trigger(STEP_KEYS[step]))) return;
@@ -941,10 +971,8 @@ export default function ReportWizard() {
             } catch {
                 // ignore if supabase is not configured
             }
-        }
 
-        // If already offline, skip the network attempt entirely
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
+        if (typeof navigator !== "undefined" && (!navigator.onLine || isNetworkError)) {
             try {
                 const geo = await geocodePincode(data.pincode).catch(() => null);
                 await queueReport({ ...data, ...(geo ?? {}) });
@@ -1021,7 +1049,7 @@ export default function ReportWizard() {
             {/* Semantic form wrapper — enables Enter-to-submit and screen reader identification */}
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 {/* Card */}
-                <div className="mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-(--color-border-muted) bg-(--color-surface-page) font-sans shadow-xl dark:shadow-none">
+                <div className="mx-auto flex w-full max-w-2xl min-h-0 flex-col overflow-hidden rounded-2xl border border-(--color-border-muted) bg-(--color-surface-page) font-sans shadow-xl dark:shadow-none">
                     {/* ── Header band ── */}
                     <div className="relative overflow-hidden bg-slate-900 px-8 pt-8 pb-7">
                         {/* Decorative blur */}
@@ -1053,7 +1081,7 @@ export default function ReportWizard() {
                     </div>
 
                     {/* ── Body ── */}
-                    <div className="flex-1 bg-(--color-surface-page) px-8 py-8">
+                    <div className="flex-1 min-h-0 bg-(--color-surface-page) px-8 py-8">
                         {done ? (
                             <Success
                                 onReset={handleReset}
@@ -1151,15 +1179,10 @@ export default function ReportWizard() {
                                                 <>
                                                     {t("wizard.nav.submit")} <Icon.Send />
                                                 </>
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </form>
-        </FormProvider>
+)}
+            </button>
+        </div>
+    </form>
+</FormProvider>
     );
 }
