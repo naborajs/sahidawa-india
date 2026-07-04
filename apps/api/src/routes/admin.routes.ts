@@ -15,6 +15,8 @@ import {
     getAllPharmacies,
     deletePharmacy,
     restorePharmacy,
+    getPendingVerificationRequests,
+    reviewVerificationRequest,
 } from "../controllers/admin.controller";
 import {
     invalidateDrugCache,
@@ -95,6 +97,22 @@ router.post(
     requireRole("admin"),
     validateIdParam,
     restorePharmacy
+);
+
+// ── OCR Verification Queue ────────────────────────────────────────────────────
+router.get(
+    "/verifications",
+    requireAuth,
+    requireRole("admin", "moderator"),
+    getPendingVerificationRequests
+);
+
+router.patch(
+    "/verifications/:id/review",
+    requireAuth,
+    requireRole("admin"),
+    validateIdParam,
+    reviewVerificationRequest
 );
 
 const InvalidateCacheSchema = z.object({
