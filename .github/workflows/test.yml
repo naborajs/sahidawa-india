@@ -23,8 +23,11 @@ jobs:
                   node-version: 24
                   cache: "npm"
 
+            - name: 📦 Upgrade npm
+              run: npm install -g npm@10
+
             - name: 📦 Install Dependencies (Monorepo)
-              run: npm ci
+              run: npm install --legacy-peer-deps
 
             - name: ⚡ Cache Turborepo
               uses: actions/cache@v6
