@@ -12,6 +12,7 @@ import {
 import { scanQueryLimiter } from "../middleware/rateLimit";
 import { escapePostgrest } from "../utils/db";
 import { getMlServiceUrl } from "../config/mlService";
+import { ServiceUnavailableError } from "../services/drugLookup.service";
 import logger from "../utils/logger";
 
 const router = Router();
@@ -82,21 +83,23 @@ router.post(
             }
 
             // Define schema to ensure 'transcribed' exists
-const mlResponseSchema = z.object({
-    transcribed: z.string().optional().nullable(),
-});
+            const mlResponseSchema = z.object({
+                transcribed: z.string().optional().nullable(),
+            });
 
-// Parse the ML result
-const result = (await mlResponse.json()) as Record<string, any>;
-const validation = mlResponseSchema.safeParse(result);
+            // Parse the ML result
+            const result = (await mlResponse.json()) as Record<string, any>;
+            const validation = mlResponseSchema.safeParse(result);
 
-// Validate
-if (!validation.success) {
-    logger.error("ML response validation failed", validation.error);
-    return res.status(500).json({ success: false, error: "Invalid response from ML service." });
-}
+            // Validate
+            if (!validation.success) {
+                logger.error("ML response validation failed", validation.error);
+                return res
+                    .status(500)
+                    .json({ success: false, error: "Invalid response from ML service." });
+            }
 
-const transcribedText = String(validation.data.transcribed || "").trim();
+            const transcribedText = String(validation.data.transcribed || "").trim();
 
             // Verify against Supabase CDSCO DB
             let verificationResult = {
@@ -171,6 +174,15 @@ const transcribedText = String(validation.data.transcribed || "").trim();
             result.verification = verificationResult;
             return res.json(result);
         } catch (err) {
+            if (err instanceof ServiceUnavailableError) {
+                logger.warn(`Gracefully handling cache-miss infrastructure outage: ${err.message}`);
+                return res.status(503).json({
+                    success: false,
+                    error: "SERVICE_UNAVAILABLE",
+                    code: err.code, // "errors.serviceUnavailable"
+                    message: err.message,
+                });
+            }
             logger.error("Voice verification error", err);
             return res
                 .status(500)
