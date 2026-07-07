@@ -3,7 +3,7 @@ import { z } from "zod";
 import { supabase } from "../db/client";
 import { uuidSchema } from "../utils/validation";
 import { AuthenticatedRequest, optionalAuth, requireAuth, requireRole } from "../middleware/auth";
-import { reportLimiter } from "../middleware/rateLimit";
+import { reportLimiter, limiter } from "../middleware/rateLimit";
 import {
     validateReport,
     computeReportHash,
@@ -11,6 +11,7 @@ import {
 } from "../services/reportValidation.service";
 import { triggerRecallAlert } from "../services/notifications";
 import logger from "../utils/logger";
+import dns from "dns/promises";
 
 const reportsRouter = Router();
 const DEFAULT_ADMIN_REPORTS_LIMIT = 20;
@@ -30,13 +31,29 @@ const BLOCKED_IMAGE_URL_PATTERNS = [
     /^::1$/,
     /^fc00:/i,
     /^fe80:/i,
+    /^::ffff:/i,
 ];
 
-function isPublicImageUrl(rawUrl: string): boolean {
+async function isPublicImageUrl(rawUrl: string): Promise<boolean> {
     try {
         const { protocol, hostname } = new URL(rawUrl);
         if (protocol !== "https:" && protocol !== "http:") return false;
-        return !BLOCKED_IMAGE_URL_PATTERNS.some((p) => p.test(hostname));
+        const normalized = hostname.replace(/^\[|\]$/g, "");
+
+        // Initial static regex check
+        if (BLOCKED_IMAGE_URL_PATTERNS.some((p) => p.test(normalized))) {
+            return false;
+        }
+
+        // DNS Resolution for SSRF Protection against DNS rebinding
+        const { address } = await dns.lookup(normalized);
+
+        // Check resolved IP address against blocked patterns
+        if (BLOCKED_IMAGE_URL_PATTERNS.some((p) => p.test(address))) {
+            return false;
+        }
+
+        return true;
     } catch {
         return false;
     }
@@ -108,7 +125,7 @@ reportsRouter.post(
     reportLimiter,
     optionalAuth,
     async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-        const parsed = createReportSchema.safeParse(req.body);
+        const parsed = await createReportSchema.safeParseAsync(req.body);
 
         if (!parsed.success) {
             res.status(400).json({
@@ -310,6 +327,7 @@ reportsRouter.get("/", requireAuth, requireRole("admin"), async (req, res: Respo
         let query = supabase
             .from("counterfeit_reports")
             .select("*")
+            .or(`snoozed_until.is.null,snoozed_until.lte.${new Date().toISOString()}`)
             .order("created_at", { ascending: false })
             .limit(limit + 1);
 
@@ -418,7 +436,8 @@ reportsRouter.patch(
                     .eq("district", data.district)
                     .eq("reported_brand_name", data.reported_brand_name)
                     .eq("status", "verified_fake")
-                    .eq("is_escalated", false);
+                    .eq("is_escalated", false)
+                    .or(`snoozed_until.is.null,snoozed_until.lte.${new Date().toISOString()}`);
 
                 if (count && count >= 5) {
                     const alertLevel = count >= 15 ? "high" : "medium";
@@ -491,6 +510,50 @@ reportsRouter.patch(
             console.error("Unexpected error in PATCH /api/reports/:id/status:", err);
             res.status(500).json({ error: "An unexpected error occurred" });
         }
+    }
+);
+
+/**
+ * PATCH /api/reports/:id/snooze
+ * Snoozes a report for a given number of days.
+ */
+reportsRouter.patch(
+    "/:id/snooze",
+    limiter,
+    requireAuth,
+    requireRole("admin", "moderator"),
+    async (req, res: Response) => {
+        const parsedId = uuidSchema.safeParse(req.params.id);
+        if (!parsedId.success) {
+            res.status(400).json({ error: "Invalid UUID format" });
+            return;
+        }
+
+        const snoozeSchema = z.object({
+            days: z.number().min(1).max(365).default(7),
+        });
+
+        const parsedBody = snoozeSchema.safeParse(req.body);
+        if (!parsedBody.success) {
+            res.status(400).json({ error: "Invalid snooze payload", details: parsedBody.error });
+            return;
+        }
+
+        const snoozedUntil = new Date();
+        snoozedUntil.setDate(snoozedUntil.getDate() + parsedBody.data.days);
+
+        const { error } = await supabase
+            .from("counterfeit_reports")
+            .update({ snoozed_until: snoozedUntil.toISOString() })
+            .eq("id", req.params.id);
+
+        if (error) {
+            logger.error("Failed to snooze report", { error, id: req.params.id });
+            res.status(500).json({ error: "Failed to snooze report" });
+            return;
+        }
+
+        res.json({ success: true, snoozed_until: snoozedUntil.toISOString() });
     }
 );
 
