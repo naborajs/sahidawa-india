@@ -116,6 +116,9 @@ jobs:
               with:
                   separator: " "
 
+            - name: 📦 Install Dependencies
+              run: npm install --legacy-peer-deps
+
             - name: 💅 Run Prettier on Changed Files
               if: steps.changed-files.outputs.any_changed == 'true'
               run: |

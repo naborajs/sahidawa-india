@@ -627,7 +627,8 @@
         "status": "Online",
         "welcome": "Hi! I am the SahiDawa AI Assistant. How can I help you with your medicines today?",
         "placeholder": "Ask me about a medicine...",
-        "tooltipLabel": "AI Health Assistant"
+        "tooltipLabel": "AI Health Assistant",
+        "clear": "Clear"
     },
     "Alerts": {
         "backHome": "Back to Home Page",
@@ -733,6 +734,7 @@
         "addMedicine": "Add Medicine",
         "editMedicine": "Edit Medicine",
         "saveChanges": "Save Changes",
+        "saving": "Saving...",
         "cancel": "Cancel",
         "notesLabel": "Notes (Optional)",
         "notesPlaceholder": "Storage instructions or dosage notes...",
