@@ -53,6 +53,7 @@ import {
 import { useCloudTTS, type TTSError } from "./lib/useCloudTTS";
 import type { VoiceErrorState, VoiceStep, VoiceStreamingStatus, VoiceTriageResult } from "./types";
 import { useLocale, useTranslations } from "next-intl";
+import VoiceVerify from "../../../components/VoiceVerify";
 
 const DEFAULT_FLOW_CONFIDENCE = getConfidenceMeta(undefined);
 const VOICE_ANIMATION_STORAGE_KEY = "sahidawa.voice.animations";
@@ -149,6 +150,7 @@ export default function VoiceTriagePage() {
     const router = useRouter();
     const locale = useLocale();
     const t = useTranslations("VoicePage");
+    const [mode, setMode] = useState<"triage" | "verify">("triage");
     const [step, setStep] = useState<VoiceStep>("initial");
     const [selectedLanguage, setSelectedLanguage] = useState(getVoiceLanguageForLocale(locale));
     const [activeLanguageCode, setActiveLanguageCode] = useState<string | null>(null);
@@ -1194,200 +1196,239 @@ export default function VoiceTriagePage() {
                 }
             />
 
-            <main
-                id="main-content"
-                ref={mainRef}
-                tabIndex={-1}
-                className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6 py-8"
-            >
-                <div className="w-full max-w-md">
-                    <label
-                        htmlFor="voice-language"
-                        className="mb-2 block text-xs font-bold tracking-widest text-(--color-text-secondary) uppercase"
-                    >
-                        {t("language_selector")}
-                    </label>
-                    <select
-                        id="voice-language"
-                        value={selectedLanguage}
-                        onChange={(event) => setSelectedLanguage(event.target.value)}
-                        disabled={isLanguageSelectionLocked}
-                        className={`w-full rounded-2xl border border-(--color-border-muted) bg-(--color-surface-page) px-4 py-3 text-sm font-semibold text-(--color-text-primary) shadow-sm disabled:cursor-not-allowed disabled:bg-(--color-surface-muted) ${VOICE_FOCUS_RING_CLASS}`}
-                    >
-                        {VOICE_LANGUAGE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
-                    <VoiceAnimationToggle
-                        label={t("animation_toggle_label")}
-                        liveLabel={t("animation_live_label")}
-                        reducedMotionLabel={t("animation_reduced_motion_label")}
-                        enabled={animationsEnabled}
-                        onToggle={(nextPreference) => {
-                            setAnimationsEnabled(nextPreference);
-                            try {
-                                window.localStorage.setItem(
-                                    VOICE_ANIMATION_STORAGE_KEY,
-                                    nextPreference ? "enabled" : "disabled"
-                                );
-                            } catch {
-                                // Local storage is optional; the toggle still works for this session.
-                            }
-                        }}
-                    />
-                </div>
-
-                <div
-                    ref={panelRef}
-                    tabIndex={-1}
-                    className="w-full max-w-md rounded-[2.5rem] focus-visible:ring-[3px] focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
-                >
-                    {step === "initial" && (
-                        <VoiceIntroPanel
-                            title={t("title")}
-                            subtitle={t("subtitle")}
-                            exampleLabel={t("example_label")}
-                            exampleText={t("example_text")}
-                            assistantLabel={t("assistant_label")}
-                            assistantValue={t("assistant_value")}
-                        />
-                    )}
-
-                    {step === "listening" && (
-                        <VoiceListeningPanel
-                            transcript={transcript || t("listening_placeholder")}
-                            statusLabel={t("listening_status")}
-                            helperLabel={listeningHelperLabel}
-                            stream={audioStream}
-                            isListening={isListening}
-                            isFading={isVisualizerFading}
-                            animationsEnabled={animationsEnabled}
-                            visualizerLabel={t("visualizer_label")}
-                            volumeLabel={t("volume_label")}
-                            liveVolumeLabel={t("volume_live_label")}
-                            stillVolumeLabel={t("volume_still_label")}
-                            visualizerUnavailableLabel={t("visualizer_unavailable")}
-                        />
-                    )}
-
-                    {step === "processing" && (
-                        <VoiceProcessingPanel
-                            title={t("processing_title")}
-                            subtitle={t("processing_subtitle")}
-                        />
-                    )}
-
-                    {step === "review" && (
-                        <VoiceReviewPanel
-                            title={t("review_title")}
-                            message={t("review_message")}
-                            transcript={transcript}
-                            confidence={confidence}
-                            confidenceLabelPrefix={t("confidence_label")}
-                            confidenceValueLabel={getConfidenceValueLabel(confidence, t)}
-                            retryLabel={t("retry_button")}
-                            analyseLabel={t("analyse_anyway_button")}
-                            onRetry={() => resetFlow()}
-                            onAnalyse={() =>
-                                void analyseTranscript(transcript, confidence, emergencyMatches)
-                            }
-                            emergencyTitle={t("emergency_title")}
-                            emergencyBody={t("emergency_body")}
-                            showEmergency={emergencyMatches.length > 0}
-                        />
-                    )}
-
-                    {step === "error" && error && (
-                        <VoiceErrorPanel
-                            error={error}
-                            retryLabel={t("retry_button")}
-                            switchToTextLabel={t("switch_to_text_button")}
-                            onRetry={() => resetFlow()}
-                            onSwitchToText={() => router.push(`/${locale}/health`)}
-                        />
-                    )}
-
-                    {step === "result" && result && (
-                        <VoiceResultPanel
-                            heading={t("result_heading")}
-                            subheading={t("result_subheading")}
-                            transcriptLabel={t("transcript_label")}
-                            transcript={transcript}
-                            confidence={confidence}
-                            confidenceLabelPrefix={t("confidence_label")}
-                            confidenceValueLabel={getConfidenceValueLabel(confidence, t)}
-                            result={result}
-                            emergencyTitle={t("emergency_title")}
-                            emergencyBody={t("emergency_body")}
-                            recommendationsLabel={t("recommendations_label")}
-                            shareLabel={t("share_button")}
-                            speakLabel={t("speak_button")}
-                            stopSpeakingLabel={t("stop_speaking_button")}
-                            tryAgainLabel={t("try_again_button")}
-                            isSpeaking={isSpeaking}
-                            onReplay={handleReplaySummary}
-                            onStopSpeaking={handleStopSpeaking}
-                            onShare={handleShare}
-                            onTryAgain={() => resetFlow()}
-                        />
-                    )}
-                </div>
-            </main>
-
-            {showMicFooter && (
-                <div className="relative z-10 flex flex-col items-center p-12">
+            <div className="z-20 flex justify-center pt-4">
+                <div className="flex rounded-full bg-slate-200/50 p-1 dark:bg-slate-800/50">
                     <button
-                        onClick={handleMicAction}
-                        aria-label={
-                            step === "listening"
-                                ? t("stop_listening_aria")
-                                : t("start_listening_aria")
-                        }
-                        className={`relative flex h-24 w-24 items-center justify-center rounded-full transition-all duration-500 focus-visible:ring-[3px] focus-visible:ring-emerald-600 focus-visible:ring-offset-4 focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-emerald-600 ${
-                            step === "listening"
-                                ? "scale-125 bg-red-500"
-                                : "bg-emerald-600 shadow-xl shadow-emerald-600/30 hover:scale-110"
-                        } `}
+                        onClick={() => setMode("triage")}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                            mode === "triage"
+                                ? "bg-white text-emerald-700 shadow-sm dark:bg-slate-700 dark:text-emerald-400"
+                                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                        }`}
                     >
-                        {step === "listening" ? (
-                            <div
-                                className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-30"
-                                aria-hidden="true"
-                            ></div>
-                        ) : (
-                            <div
-                                className="absolute inset-0 animate-pulse rounded-full bg-emerald-600 opacity-20"
-                                aria-hidden="true"
-                            ></div>
-                        )}
-                        <Mic
-                            size={40}
-                            aria-hidden="true"
-                            className="relative z-10 text-white"
-                            strokeWidth={2.5}
-                        />
-                        <span className="sr-only">
-                            {step === "listening"
-                                ? t("stop_listening_sr")
-                                : t("start_listening_sr")}
-                        </span>
+                        Symptom Triage
                     </button>
-                    <p
-                        className="mt-6 text-sm font-bold tracking-widest text-(--color-text-muted) uppercase"
-                        aria-hidden="true"
+                    <button
+                        onClick={() => setMode("verify")}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                            mode === "verify"
+                                ? "bg-white text-emerald-700 shadow-sm dark:bg-slate-700 dark:text-emerald-400"
+                                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                        }`}
                     >
-                        {step === "listening" ? t("stop_listening_label") : t("tap_to_speak")}
-                    </p>
+                        Medicine Check
+                    </button>
                 </div>
-            )}
+            </div>
 
-            <footer className="p-8 text-center">
-                <p className="mx-auto max-w-xs text-[10px] font-bold tracking-widest text-(--color-text-muted) uppercase">
-                    {t("footer_note")}
-                </p>
-            </footer>
+            {mode === "verify" ? (
+                <main className="relative z-10 flex w-full flex-1 flex-col items-center overflow-y-auto pt-8">
+                    <VoiceVerify />
+                </main>
+            ) : (
+                <>
+                    <main
+                        id="main-content"
+                        ref={mainRef}
+                        tabIndex={-1}
+                        className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6 py-8"
+                    >
+                        <div className="w-full max-w-md">
+                            <label
+                                htmlFor="voice-language"
+                                className="mb-2 block text-xs font-bold tracking-widest text-(--color-text-secondary) uppercase"
+                            >
+                                {t("language_selector")}
+                            </label>
+                            <select
+                                id="voice-language"
+                                value={selectedLanguage}
+                                onChange={(event) => setSelectedLanguage(event.target.value)}
+                                disabled={isLanguageSelectionLocked}
+                                className={`w-full rounded-2xl border border-(--color-border-muted) bg-(--color-surface-page) px-4 py-3 text-sm font-semibold text-(--color-text-primary) shadow-sm disabled:cursor-not-allowed disabled:bg-(--color-surface-muted) ${VOICE_FOCUS_RING_CLASS}`}
+                            >
+                                {VOICE_LANGUAGE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <VoiceAnimationToggle
+                                label={t("animation_toggle_label")}
+                                liveLabel={t("animation_live_label")}
+                                reducedMotionLabel={t("animation_reduced_motion_label")}
+                                enabled={animationsEnabled}
+                                onToggle={(nextPreference) => {
+                                    setAnimationsEnabled(nextPreference);
+                                    try {
+                                        window.localStorage.setItem(
+                                            VOICE_ANIMATION_STORAGE_KEY,
+                                            nextPreference ? "enabled" : "disabled"
+                                        );
+                                    } catch {
+                                        // Local storage is optional; the toggle still works for this session.
+                                    }
+                                }}
+                            />
+                        </div>
+
+                        <div
+                            ref={panelRef}
+                            tabIndex={-1}
+                            className="w-full max-w-md rounded-[2.5rem] focus-visible:ring-[3px] focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                        >
+                            {step === "initial" && (
+                                <VoiceIntroPanel
+                                    title={t("title")}
+                                    subtitle={t("subtitle")}
+                                    exampleLabel={t("example_label")}
+                                    exampleText={t("example_text")}
+                                    assistantLabel={t("assistant_label")}
+                                    assistantValue={t("assistant_value")}
+                                />
+                            )}
+
+                            {step === "listening" && (
+                                <VoiceListeningPanel
+                                    transcript={transcript || t("listening_placeholder")}
+                                    statusLabel={t("listening_status")}
+                                    helperLabel={listeningHelperLabel}
+                                    stream={audioStream}
+                                    isListening={isListening}
+                                    isFading={isVisualizerFading}
+                                    animationsEnabled={animationsEnabled}
+                                    visualizerLabel={t("visualizer_label")}
+                                    volumeLabel={t("volume_label")}
+                                    liveVolumeLabel={t("volume_live_label")}
+                                    stillVolumeLabel={t("volume_still_label")}
+                                    visualizerUnavailableLabel={t("visualizer_unavailable")}
+                                />
+                            )}
+
+                            {step === "processing" && (
+                                <VoiceProcessingPanel
+                                    title={t("processing_title")}
+                                    subtitle={t("processing_subtitle")}
+                                />
+                            )}
+
+                            {step === "review" && (
+                                <VoiceReviewPanel
+                                    title={t("review_title")}
+                                    message={t("review_message")}
+                                    transcript={transcript}
+                                    confidence={confidence}
+                                    confidenceLabelPrefix={t("confidence_label")}
+                                    confidenceValueLabel={getConfidenceValueLabel(confidence, t)}
+                                    retryLabel={t("retry_button")}
+                                    analyseLabel={t("analyse_anyway_button")}
+                                    onRetry={() => resetFlow()}
+                                    onAnalyse={() =>
+                                        void analyseTranscript(
+                                            transcript,
+                                            confidence,
+                                            emergencyMatches
+                                        )
+                                    }
+                                    emergencyTitle={t("emergency_title")}
+                                    emergencyBody={t("emergency_body")}
+                                    showEmergency={emergencyMatches.length > 0}
+                                />
+                            )}
+
+                            {step === "error" && error && (
+                                <VoiceErrorPanel
+                                    error={error}
+                                    retryLabel={t("retry_button")}
+                                    switchToTextLabel={t("switch_to_text_button")}
+                                    onRetry={() => resetFlow()}
+                                    onSwitchToText={() => router.push(`/${locale}/health`)}
+                                />
+                            )}
+
+                            {step === "result" && result && (
+                                <VoiceResultPanel
+                                    heading={t("result_heading")}
+                                    subheading={t("result_subheading")}
+                                    transcriptLabel={t("transcript_label")}
+                                    transcript={transcript}
+                                    confidence={confidence}
+                                    confidenceLabelPrefix={t("confidence_label")}
+                                    confidenceValueLabel={getConfidenceValueLabel(confidence, t)}
+                                    result={result}
+                                    emergencyTitle={t("emergency_title")}
+                                    emergencyBody={t("emergency_body")}
+                                    recommendationsLabel={t("recommendations_label")}
+                                    shareLabel={t("share_button")}
+                                    speakLabel={t("speak_button")}
+                                    stopSpeakingLabel={t("stop_speaking_button")}
+                                    tryAgainLabel={t("try_again_button")}
+                                    isSpeaking={isSpeaking}
+                                    onReplay={handleReplaySummary}
+                                    onStopSpeaking={handleStopSpeaking}
+                                    onShare={handleShare}
+                                    onTryAgain={() => resetFlow()}
+                                />
+                            )}
+                        </div>
+                    </main>
+
+                    {showMicFooter && (
+                        <div className="relative z-10 flex flex-col items-center p-12">
+                            <button
+                                onClick={handleMicAction}
+                                aria-label={
+                                    step === "listening"
+                                        ? t("stop_listening_aria")
+                                        : t("start_listening_aria")
+                                }
+                                className={`relative flex h-24 w-24 items-center justify-center rounded-full transition-all duration-500 focus-visible:ring-[3px] focus-visible:ring-emerald-600 focus-visible:ring-offset-4 focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-emerald-600 ${
+                                    step === "listening"
+                                        ? "scale-125 bg-red-500"
+                                        : "bg-emerald-600 shadow-xl shadow-emerald-600/30 hover:scale-110"
+                                } `}
+                            >
+                                {step === "listening" ? (
+                                    <div
+                                        className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-30"
+                                        aria-hidden="true"
+                                    ></div>
+                                ) : (
+                                    <div
+                                        className="absolute inset-0 animate-pulse rounded-full bg-emerald-600 opacity-20"
+                                        aria-hidden="true"
+                                    ></div>
+                                )}
+                                <Mic
+                                    size={40}
+                                    aria-hidden="true"
+                                    className="relative z-10 text-white"
+                                    strokeWidth={2.5}
+                                />
+                                <span className="sr-only">
+                                    {step === "listening"
+                                        ? t("stop_listening_sr")
+                                        : t("start_listening_sr")}
+                                </span>
+                            </button>
+                            <p
+                                className="mt-6 text-sm font-bold tracking-widest text-(--color-text-muted) uppercase"
+                                aria-hidden="true"
+                            >
+                                {step === "listening"
+                                    ? t("stop_listening_label")
+                                    : t("tap_to_speak")}
+                            </p>
+                        </div>
+                    )}
+
+                    <footer className="p-8 text-center">
+                        <p className="mx-auto max-w-xs text-[10px] font-bold tracking-widest text-(--color-text-muted) uppercase">
+                            {t("footer_note")}
+                        </p>
+                    </footer>
+                </>
+            )}
         </div>
     );
 }
