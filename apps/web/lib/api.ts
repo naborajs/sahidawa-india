@@ -1,7 +1,15 @@
 import { fetchWithRetry } from "./apiWithRetry";
 import { createSWRCache } from "./cacheUtils";
-import type { VerifiedPharmacy, LasaMatch, LasaMatchType } from "@sahidawa/types";
+
+import type {
+  VerifiedPharmacy,
+  LasaMatch,
+  LasaMatchType,
+} from "@sahidawa/types";
 export type { VerifiedPharmacy, LasaMatch, LasaMatchType };
+
+import { PHARMACY_SEARCH_RADIUS_DEFAULT_KM } from "@sahidawa/shared";
+
 
 const DEFAULT_API_ORIGIN = "http://localhost:4000";
 const configuredApiUrl = (process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_ORIGIN).trim();
@@ -234,7 +242,7 @@ export type VerifyResult =
 export async function fetchVerifiedPharmacies(
     lat: number,
     lng: number,
-    radiusKm: number = 50,
+    radiusKm: number = PHARMACY_SEARCH_RADIUS_DEFAULT_KM,
     signal?: AbortSignal
 ): Promise<VerifiedPharmacy[]> {
     try {
