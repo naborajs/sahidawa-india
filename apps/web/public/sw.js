@@ -592,7 +592,7 @@ function openIndexedDB(dbName, version, upgradeCallback) {
         const request = indexedDB.open(dbName, version);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
-        request.onupgradeneeded = (event) => {
+        request.onupgradeneeded = () => {
             if (upgradeCallback) upgradeCallback(request.result);
         };
     });
