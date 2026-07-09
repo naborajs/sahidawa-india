@@ -3,7 +3,6 @@ import {
     enhanceImagePixels,
     WEBP_OUTPUT_QUALITY,
     WEBP_OUTPUT_TYPE,
-    type ImageEnhancementResponse,
 } from "./imageEnhancer.shared";
 
 let workerRequestSequence = 0;
@@ -277,7 +276,7 @@ export async function preprocessMedicineImage(
         });
         cleanup();
         return result;
-    } catch (e) {
+    } catch {
         cleanup();
         return input;
     }

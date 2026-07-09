@@ -207,7 +207,7 @@ self.onmessage = async (event) => {
             let sampledImageData;
             try {
                 sampledImageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-            } catch (error) {
+            } catch {
                 const blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.8 });
                 self.postMessage({ id, file: blob });
                 return;
