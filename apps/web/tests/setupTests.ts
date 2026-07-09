@@ -2,7 +2,19 @@
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Helpful matchers
+import "fake-indexeddb/auto";
 import "@testing-library/jest-dom";
+
+const clonePolyfill = (value: any) => JSON.parse(JSON.stringify(value));
+if (!(globalThis as any).structuredClone) {
+    (globalThis as any).structuredClone = clonePolyfill;
+}
+if (typeof global !== "undefined" && !(global as any).structuredClone) {
+    (global as any).structuredClone = clonePolyfill;
+}
+if (typeof window !== "undefined" && !(window as any).structuredClone) {
+    (window as any).structuredClone = clonePolyfill;
+}
 
 // Minimal OffscreenCanvas mock used by image processing code
 if (!(globalThis as any).OffscreenCanvas) {
@@ -70,15 +82,20 @@ if (!(globalThis as any).Image) {
 }
 
 // Ensure HTMLCanvasElement.toBlob exists in jsdom
-if (!HTMLCanvasElement.prototype.toBlob) {
+if (typeof HTMLCanvasElement !== "undefined" && !HTMLCanvasElement.prototype.toBlob) {
     HTMLCanvasElement.prototype.toBlob = function (callback: (b: Blob | null) => void) {
         try {
-            const dataUrl = (this as HTMLCanvasElement).toDataURL
-                ? (this as HTMLCanvasElement).toDataURL()
-                : "";
-            callback(new Blob([dataUrl], { type: "image/png" }));
+            const canvas = this as HTMLCanvasElement;
+            // Guard against zero-dimension canvas which causes toDataURL to fail in jsdom
+            if (canvas.width > 0 && canvas.height > 0) {
+                const dataUrl = canvas.toDataURL?.() ?? "";
+                callback(new Blob([dataUrl], { type: "image/png" }));
+            } else {
+                callback(new Blob([], { type: "image/png" }));
+            }
         } catch {
-            callback(null);
+            // Return a valid empty blob instead of null so tests don't crash during setup
+            callback(new Blob([], { type: "image/png" }));
         }
     };
 }
