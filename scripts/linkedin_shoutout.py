@@ -524,7 +524,7 @@ def generate_and_upload_image(pr: dict, access_token: str, org_urn: str) -> str 
         else:
             # Fallback
             print("↩️ Falling back to ONLY GitHub PR OpenGraph image...")
-            cropped = pr_img.crop((0, 0, width, height - 20))
+            cropped = pr_img.crop((0, 0, width, height - 25))
             cropped.save(comic_path, format="PNG")
             print("✅ GitHub OG fallback image cropped and saved successfully.")
             
