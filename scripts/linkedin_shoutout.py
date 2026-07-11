@@ -516,40 +516,54 @@ def generate_and_upload_image(pr: dict, access_token: str, org_urn: str) -> str 
 
         if bg_img:
             # Composite
-            # Crop a beautifully proportioned card containing the Title and Stats
-            pr_cropped = pr_img.crop((50, 50, 1150, 480))
+            # The entire GitHub OG image is perfectly designed, we just need to scale it down
+            # so it fits nicely inside the AI background like a floating card.
+            # First, crop just the bottom 25px language bar
+            pr_cropped = pr_img.crop((0, 0, width, height - 25))
             
-            # --- Make the card look professional (Rounded corners + Drop Shadow) ---
-            card_w, card_h = pr_cropped.size
+            # Scale it down to 85%
+            scale = 0.85
+            new_w = int(pr_cropped.width * scale)
+            new_h = int(pr_cropped.height * scale)
+            
+            # Using Image.Resampling.LANCZOS for high quality downscaling if available, else Image.LANCZOS
+            try:
+                resample_filter = Image.Resampling.LANCZOS
+            except AttributeError:
+                resample_filter = Image.LANCZOS
+                
+            pr_scaled = pr_cropped.resize((new_w, new_h), resample_filter)
+            
+            # --- Make the scaled card look professional (Rounded corners + Drop Shadow) ---
             radius = 24
             
             # Create rounded mask
-            mask = Image.new('L', (card_w, card_h), 0)
+            mask = Image.new('L', (new_w, new_h), 0)
             draw = ImageDraw.Draw(mask)
-            draw.rounded_rectangle([(0, 0), (card_w, card_h)], radius=radius, fill=255)
+            draw.rounded_rectangle([(0, 0), (new_w, new_h)], radius=radius, fill=255)
             
             # Apply rounded mask
-            rounded_card = Image.new('RGBA', (card_w, card_h))
-            rounded_card.paste(pr_cropped, (0, 0), mask=mask)
+            rounded_card = Image.new('RGBA', (new_w, new_h))
+            rounded_card.paste(pr_scaled, (0, 0), mask=mask)
             
             # Create a soft, elegant drop shadow
-            shadow_blur = 20
+            shadow_blur = 25
             shadow_offset_y = 15
-            shadow_canvas = Image.new('RGBA', (card_w + shadow_blur*2, card_h + shadow_blur*2 + shadow_offset_y), (0,0,0,0))
+            shadow_canvas = Image.new('RGBA', (new_w + shadow_blur*2, new_h + shadow_blur*2 + shadow_offset_y), (0,0,0,0))
             shadow_draw = ImageDraw.Draw(shadow_canvas)
             shadow_draw.rounded_rectangle(
-                [(shadow_blur, shadow_blur), (card_w + shadow_blur, card_h + shadow_blur)],
-                radius=radius, fill=(0, 0, 0, 90)
+                [(shadow_blur, shadow_blur), (new_w + shadow_blur, new_h + shadow_blur)],
+                radius=radius, fill=(0, 0, 0, 100)
             )
             shadow_canvas = shadow_canvas.filter(ImageFilter.GaussianBlur(shadow_blur))
             
             # Paste the rounded card onto the shadow canvas
             shadow_canvas.paste(rounded_card, (shadow_blur, shadow_blur), rounded_card)
             
-            # Paste the final shadowed card onto the AI background
+            # Paste the final shadowed card exactly into the center of the AI background
             bg_w, bg_h = bg_img.size
             final_card_w, final_card_h = shadow_canvas.size
-            offset = ((bg_w - final_card_w) // 2, (bg_h - final_card_h) // 2 + 30) # slight offset downwards
+            offset = ((bg_w - final_card_w) // 2, (bg_h - final_card_h) // 2)
             
             bg_img.paste(shadow_canvas, offset, shadow_canvas)
             bg_img.convert('RGB').save(comic_path, format="PNG")
