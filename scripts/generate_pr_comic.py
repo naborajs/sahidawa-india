@@ -144,19 +144,30 @@ def draw_label_tag(draw: ImageDraw.Draw, cx: int, bottom_y: int, text: str,
 def draw_box_stack(draw: ImageDraw.Draw, cx: int, bottom_y: int,
                    labels: list, sizes: list, arm_y: int):
     """Boxes stacked on each other, held up at arm_y."""
-    fn_sm = _load_font(18, bold=True)
+    fn_sm = _load_font(24, bold=True)
     y = bottom_y
     for label, bw in zip(reversed(labels), reversed(sizes)):
-        bh = 38 if bw < 100 else 56
+        bh = 50 if bw < 150 else 80
         x0, y0 = cx - bw // 2, y - bh
         draw.rectangle([x0, y0, x0 + bw, y0], fill=None)
         draw.rectangle([x0, y0, x0 + bw, y], fill=(245, 245, 240),
-                       outline=INK, width=3)
+                       outline=INK, width=4)
         # box label
-        bbox = fn_sm.getbbox(label)
-        tw = bbox[2] - bbox[0]
-        draw.text((cx - tw // 2, y0 + (bh - fn_sm.size) // 2), label,
-                  fill=INK, font=fn_sm)
+        if "\n" in label:
+            fn_sm_multi = _load_font(18, bold=True)
+            parts = label.split("\n")
+            total_h = len(parts) * 22
+            start_y = y0 + (bh - total_h) // 2
+            for i, part in enumerate(parts):
+                bbox = fn_sm_multi.getbbox(part)
+                pw = bbox[2] - bbox[0]
+                draw.text((cx - pw // 2, start_y + i * 22), part,
+                          fill=INK, font=fn_sm_multi)
+        else:
+            bbox = fn_sm.getbbox(label.replace("\n"," "))
+            tw = bbox[2] - bbox[0]
+            draw.text((cx - tw // 2, y0 + (bh - fn_sm.size) // 2), label,
+                      fill=INK, font=fn_sm)
         y = y0
 
 
@@ -260,169 +271,181 @@ def generate_comic(pr: dict) -> str:
     draw = ImageDraw.Draw(img)
 
     # ── Grid accents (top-right corner & bottom-left corner only)
-    draw_grid(draw, W - 260, 30, W - 30, 260, step=30)
-    draw_grid(draw, 30, H - 260, 260, H - 30, step=30)
+    draw_grid(draw, W - 400, 30, W - 30, 400, step=40)
+    draw_grid(draw, 30, H - 400, 400, H - 30, step=40)
 
     # ── Fonts
-    fn_hand   = _load_font(24)
-    fn_label  = _load_font(22, bold=True)
-    fn_bubble = _load_font(22)
-    fn_bub_sm = _load_font(18)
-    fn_title  = _load_font(32, bold=True)
-    fn_cap    = _load_font(26, bold=True)
-    fn_cap_sm = _load_font(20)
-    fn_brand  = _load_font(36, bold=True)
-    fn_tag    = _load_font(20)
+    fn_hand   = _load_font(28)
+    fn_label  = _load_font(24, bold=True)
+    fn_bubble = _load_font(24)
+    fn_bub_sm = _load_font(20)
+    fn_title  = _load_font(36, bold=True)
+    fn_cap    = _load_font(32, bold=True)
+    fn_cap_sm = _load_font(26)
+    fn_brand  = _load_font(40, bold=True)
+    fn_tag    = _load_font(24)
 
     # ── Top-left handwritten annotation
-    draw.text((48, 44), "'meanwhile, inside\nthe browser...'", fill=INK, font=fn_hand)
+    draw.text((60, 60), "'meanwhile, inside\nthe browser...'", fill=INK, font=fn_hand)
 
     # ═══════════════════════════════════════════════════════════════
     # SCENE 1 — MAIN THREAD (left, leaning back, carrying boxes)
     # ═══════════════════════════════════════════════════════════════
-    mt_cx, mt_cy = 320, 380
-    sm1 = draw_stickman(draw, mt_cx, mt_cy, size=80, lean=-18, sweat=True)
+    mt_cx, mt_cy = 400, 500
+    sm1 = draw_stickman(draw, mt_cx, mt_cy, size=100, lean=-25, sweat=True)
 
-    # Boxes above stickman (arm_y ≈ neck_y + 1/3 body)
-    box_bottom = mt_cy - 80 - 12   # just above the hands
-    draw_box_stack(draw, mt_cx - 12, box_bottom,
+    # Boxes above stickman (index 1 is top_y)
+    box_bottom = sm1[1] - 10   
+    # Scale up box sizes
+    draw_box_stack(draw, mt_cx - 20, box_bottom,
                    ["UI", "INPUT", "RENDER", heavy_box],
-                   [60, 70, 70, 110],
-                   arm_y=sm1[3] - 30)
+                   [90, 100, 100, 150],
+                   arm_y=0)
 
     # Speech bubble
-    draw_speech_bubble(draw, mt_cx + 30, mt_cy - 85, "I'm fine.",
+    draw_speech_bubble(draw, mt_cx + 80, mt_cy - 150, "I'm fine.",
                        fn_bubble, direction="left")
 
     # Loading spinner beside stickman
-    draw_loading_spinner(draw, mt_cx + 90, mt_cy + 20)
+    draw_loading_spinner(draw, mt_cx + 120, mt_cy - 20, r=16)
 
-    # Label
-    draw_label_tag(draw, mt_cx, sm1[3] + 80, "MAIN THREAD", fn_label)
+    # Label (index 3 is waist_y, +50 for legs)
+    draw_label_tag(draw, mt_cx, sm1[3] + 70, "MAIN THREAD", fn_label)
 
     # ═══════════════════════════════════════════════════════════════
-    # SCENE 1 — WEB WORKER (right, casual)
+    # SCENE 1 — WEB WORKER (top right, casual)
     # ═══════════════════════════════════════════════════════════════
-    ww_cx, ww_cy = 680, 370
-    sm2 = draw_stickman(draw, ww_cx, ww_cy, size=80)
+    ww_cx, ww_cy = 950, 300
+    sm2 = draw_stickman(draw, ww_cx, ww_cy, size=90)
 
     # Speech bubbles — stacked
-    draw_speech_bubble(draw, ww_cx - 20, ww_cy - 90, "bro.",
+    draw_speech_bubble(draw, ww_cx - 30, ww_cy - 100, "bro.",
                        fn_bubble, direction="right")
-    draw_speech_bubble(draw, ww_cx - 10, ww_cy - 145, "you're literally\nfreezing.",
+    draw_speech_bubble(draw, ww_cx - 15, ww_cy - 170, "you're literally\nfreezing.",
                        fn_bub_sm, direction="right", small=True)
 
-    draw_label_tag(draw, ww_cx, sm2[3] + 80, "WEB WORKER", fn_label)
-
     # ═══════════════════════════════════════════════════════════════
-    # SCENE 2 — TRANSITION (center-right area)
+    # SCENE 2 — TRANSITION (bottom right area)
     # ═══════════════════════════════════════════════════════════════
-    # WW walking toward MT (WW now at ~900, MT now at ~760)
-    mt2_cx, mt2_cy = 830, 420
-    ww2_cx, ww2_cy = 1000, 415
+    mt2_cx, mt2_cy = 1300, 520
+    ww2_cx, ww2_cy = 1650, 500
 
-    sm3 = draw_stickman(draw, mt2_cx, mt2_cy, size=70)    # Main Thread relieved
-    sm4 = draw_stickman(draw, ww2_cx, ww2_cy, size=70)    # Web Worker approaching
+    sm3 = draw_stickman(draw, mt2_cx, mt2_cy, size=100)    # Main Thread relieved
+    sm4 = draw_stickman(draw, ww2_cx, ww2_cy, size=100)    # Web Worker approaching
 
     # WW's "give me" bubble
-    draw_speech_bubble(draw, ww2_cx - 30, ww2_cy - 85, "give me the\nimage stuff.",
+    draw_speech_bubble(draw, ww2_cx - 40, ww2_cy - 100, "give me the\nimage stuff.",
                        fn_bub_sm, direction="right", small=True)
 
     # Arrow showing box transfer
-    heavy_box_x = (mt2_cx + ww2_cx) // 2
-    heavy_box_y = mt2_cy - 30
-    hbw, hbh = 120, 55
+    heavy_box_x = (mt2_cx + ww2_cx) // 2 - 30
+    heavy_box_y = mt2_cy - 120
+    hbw, hbh = 150, 65
     draw.rectangle([heavy_box_x - hbw//2, heavy_box_y - hbh,
                     heavy_box_x + hbw//2, heavy_box_y],
                    fill=(245, 245, 240), outline=INK, width=3)
-    fn_box = _load_font(17, bold=True)
+    fn_box = _load_font(20, bold=True)
     tw = fn_box.getbbox(heavy_box.replace("\n"," "))[2]
-    for i, part in enumerate(heavy_box.split("\n")):
-        pw = fn_box.getbbox(part)[2]
-        draw.text((heavy_box_x - pw//2, heavy_box_y - hbh + 8 + i*22),
-                  part, fill=INK, font=fn_box)
+    
+    if "\n" in heavy_box:
+        parts = heavy_box.split("\n")
+        total_h = len(parts) * 22
+        start_y = heavy_box_y - hbh + (hbh - total_h) // 2
+        for i, part in enumerate(parts):
+            pw = fn_box.getbbox(part)[2] - fn_box.getbbox(part)[0]
+            draw.text((heavy_box_x - pw//2, start_y + i*22),
+                      part, fill=INK, font=fn_box)
+    else:
+        pw = fn_box.getbbox(heavy_box)[2] - fn_box.getbbox(heavy_box)[0]
+        draw.text((heavy_box_x - pw//2, heavy_box_y - hbh + (hbh - 20)//2),
+                  heavy_box, fill=INK, font=fn_box)
 
-    draw_arrow(draw, heavy_box_x - hbw//2 - 4, heavy_box_y - hbh//2,
-               heavy_box_x + hbw//2 + 60, heavy_box_y - hbh//2)
+    draw_arrow(draw, heavy_box_x - hbw//2 - 10, heavy_box_y - hbh//2,
+               heavy_box_x + hbw//2 + 90, heavy_box_y - hbh//2)
 
     # MT's relief boxes (only 3 small ones)
-    draw_box_stack(draw, mt2_cx - 8, mt2_cy - 75,
-                   ["UI", "INPUT", "RENDER"], [58, 65, 65], arm_y=0)
+    draw_box_stack(draw, mt2_cx - 10, sm3[1] - 10,
+                   ["UI", "INPUT", "RENDER"], [80, 90, 90], arm_y=0)
 
-    draw_speech_bubble(draw, mt2_cx + 20, mt2_cy - 85, "...oh.",
+    draw_speech_bubble(draw, mt2_cx + 40, mt2_cy - 160, "...oh.",
                        fn_bub_sm, direction="left", small=True)
-    draw_speech_bubble(draw, ww2_cx + 20, ww2_cy - 70, "yeah.",
+    draw_speech_bubble(draw, ww2_cx + 40, ww2_cy - 140, "yeah.",
                        fn_bub_sm, direction="right", small=True)
 
     # "PR entered the chat" caption between scenes
     pc_text = f"PR #{pr_number} entered the chat."
-    draw.text((750, 520), pc_text, fill=INK, font=_load_font(28, bold=True))
+    draw.text((1400, 620), pc_text, fill=INK, font=_load_font(24, bold=True))
 
     # ═══════════════════════════════════════════════════════════════
-    # GITHUB PR CARD  (bottom-left quadrant)
+    # GITHUB PR CARD  (Centered Bottom)
     # ═══════════════════════════════════════════════════════════════
-    card_x0, card_y0 = 50, 580
-    card_w, card_h   = 640, 180
+    card_w, card_h   = 1000, 180
+    card_x0, card_y0 = (W - card_w) // 2, 680
     draw.rounded_rectangle([card_x0, card_y0, card_x0 + card_w, card_y0 + card_h],
-                           radius=14, fill=CARD_BG, outline=CARD_BORDER, width=2)
+                           radius=16, fill=CARD_BG, outline=CARD_BORDER, width=3)
 
     # Repo header
-    draw.text((card_x0 + 20, card_y0 + 14), pr_repo, fill=INK_LIGHT, font=_load_font(19))
+    draw.text((card_x0 + 30, card_y0 + 20), pr_repo, fill=INK_LIGHT, font=_load_font(22))
 
     # PR title
-    fn_pr_title = _load_font(26, bold=True)
-    pr_title_short = pr_title[:55] + ("…" if len(pr_title) > 55 else "")
-    draw.text((card_x0 + 20, card_y0 + 42), f"#{pr_number}  {pr_title_short}",
-              fill=(30, 90, 200), font=fn_pr_title)
+    fn_pr_title = _load_font(30, bold=True)
+    pr_title_short = pr_title[:50] + ("…" if len(pr_title) > 50 else "")
+    title_text = f"#{pr_number}  {pr_title_short}"
+    draw.text((card_x0 + 30, card_y0 + 55), title_text, fill=(30, 90, 200), font=fn_pr_title)
+    
+    title_w = fn_pr_title.getbbox(title_text)[2] - fn_pr_title.getbbox(title_text)[0]
 
-    # Stats row
-    stats_y = card_y0 + 92
-    draw.text((card_x0 + 20, stats_y), f"@{pr_author}  •  {pr_files} files  •  {pr_commits} commits",
-              fill=INK_LIGHT, font=_load_font(19))
-
-    # +/- badges
-    badge_y = card_y0 + 128
-    draw.text((card_x0 + 20, badge_y), f"+{pr_additions}", fill=GREEN_STAT,
-              font=_load_font(22, bold=True))
-    draw.text((card_x0 + 100, badge_y), f"−{pr_deletions}", fill=RED_STAT,
-              font=_load_font(22, bold=True))
-
-    # Avatar circle
+    # Avatar circle inline with title
+    avatar_size = 44
+    avatar_x = card_x0 + 30 + title_w + 20
+    avatar_y = card_y0 + 50
     avatar_img = fetch_avatar(pr_avatar)
     if avatar_img:
-        img.paste(avatar_img, (card_x0 + card_w - 115, card_y0 + (card_h - 90) // 2),
-                  avatar_img)
+        avatar_img = avatar_img.resize((avatar_size, avatar_size), Image.LANCZOS)
+        mask = Image.new("L", (avatar_size, avatar_size), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, avatar_size, avatar_size], fill=255)
+        avatar_img.putalpha(mask)
+        img.paste(avatar_img, (avatar_x, avatar_y), avatar_img)
     else:
-        draw.ellipse([card_x0 + card_w - 115, card_y0 + 45,
-                      card_x0 + card_w - 25, card_y0 + 135],
+        draw.ellipse([avatar_x, avatar_y, avatar_x + avatar_size, avatar_y + avatar_size],
                      outline=CARD_BORDER, width=2)
 
-    # "This person fixed it" annotation
-    ann_x = card_x0 + card_w - 110
-    ann_y = card_y0 - 52
-    draw.text((ann_x - 90, ann_y), "this person fixed\nthe workload drama ↓", fill=INK, font=_load_font(18))
-    draw.line([(ann_x - 20, ann_y + 38), (ann_x + 25, ann_y + 55)], fill=INK, width=2)
-    # mini label below avatar
-    draw.text((card_x0 + card_w - 120, card_y0 + card_h + 6),
-              f"@{pr_author}", fill=INK, font=_load_font(18))
-    draw.text((card_x0 + card_w - 120, card_y0 + card_h + 28),
-              "cooked this one 👨‍🍳", fill=INK, font=_load_font(17))
+    # "This person fixed it" annotation (Pointing to avatar)
+    ann_x = avatar_x + avatar_size + 40
+    ann_y = avatar_y - 30
+    draw.text((ann_x + 20, ann_y - 10), "this guy fixed the\nworkload drama ↑", fill=INK, font=_load_font(20))
+    draw.line([(ann_x + 10, ann_y + 15), (avatar_x + avatar_size + 5, avatar_y + avatar_size // 2)], fill=INK, width=2)
+    
+    # mini label beside avatar
+    draw.text((avatar_x + avatar_size + 10, avatar_y + 10), f"@{pr_author} cooked this one 👨‍🍳", fill=INK, font=_load_font(18))
+
+    # Stats row
+    stats_y = card_y0 + 105
+    draw.text((card_x0 + 30, stats_y), f"@{pr_author}  •  {pr_files} files  •  {pr_commits} commits",
+              fill=INK_LIGHT, font=_load_font(22))
+
+    # +/- badges
+    badge_y = card_y0 + 140
+    draw.text((card_x0 + 30, badge_y), f"+{pr_additions}", fill=GREEN_STAT,
+              font=_load_font(24, bold=True))
+    draw.text((card_x0 + 120, badge_y), f"−{pr_deletions}", fill=RED_STAT,
+              font=_load_font(24, bold=True))
 
     # ═══════════════════════════════════════════════════════════════
     # TECHNICAL CAPTION  (bottom-center)
     # ═══════════════════════════════════════════════════════════════
-    # Short description derived from title
     if len(pr_title) > 80:
         cap_title = pr_title[:78] + "…"
     else:
         cap_title = pr_title
 
-    cap_y = 600
-    cap_x = 730
-    draw.text((cap_x, cap_y), cap_title, fill=INK, font=fn_cap)
-    draw.text((cap_x, cap_y + 46),
-              "better code separation.  less blocking.  more throughput.",
-              fill=INK_LIGHT, font=fn_cap_sm)
+    cap_y = 880
+    cap_w = fn_cap.getbbox(cap_title)[2] - fn_cap.getbbox(cap_title)[0]
+    draw.text(((W - cap_w) // 2, cap_y), cap_title, fill=INK, font=fn_cap)
+    
+    sub_cap = "better code separation.  less blocking.  more throughput."
+    scap_w = fn_cap_sm.getbbox(sub_cap)[2] - fn_cap_sm.getbbox(sub_cap)[0]
+    draw.text(((W - scap_w) // 2, cap_y + 45), sub_cap, fill=INK_LIGHT, font=fn_cap_sm)
 
     # ═══════════════════════════════════════════════════════════════
     # BOTTOM BRANDING
