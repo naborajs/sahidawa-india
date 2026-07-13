@@ -90,7 +90,7 @@ jobs:
             echo "pr_labels=$PR_LABELS"
             echo "linked_issue=$LINKED_ISSUE"
             echo "lines_changed=$LINES_CHANGED"
-          } >> $GITHUB_OUTPUT
+            } >> $GITHUB_OUTPUT
 
           # Multiline values need delimiter syntax
           echo "pr_body<<ENDBODY" >> $GITHUB_OUTPUT
@@ -311,7 +311,7 @@ jobs:
               console.log(`Waiting ${delay}ms before next retry...`);
               await new Promise(res => setTimeout(res, delay));
             }
-          }
+            }
       # ── 9. Summary ────────────────────────────────────────────────────────────
       - name: "📊 DevTrack Summary"
         if: always()
