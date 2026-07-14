@@ -38,7 +38,7 @@ describe("POST /api/v1/scheme-eligibility", () => {
     });
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        mockFetch.mockReset();
         process.env = { ...originalEnv };
         delete process.env.PMJAY_BASE_URL;
         delete process.env.PMJAY_API_KEY;
@@ -166,7 +166,10 @@ describe("POST /api/v1/scheme-eligibility", () => {
         it("should return 504 on request timeout", async () => {
             const abortError = new DOMException("The user aborted a request.", "AbortError");
             // Fails on initial try and all 2 retries (total 3 attempts)
-            mockFetch.mockRejectedValue(abortError);
+            mockFetch
+                .mockRejectedValueOnce(abortError)
+                .mockRejectedValueOnce(abortError)
+                .mockRejectedValueOnce(abortError);
 
             const res = await request(app).post("/api/v1/scheme-eligibility").send({
                 age: 45,

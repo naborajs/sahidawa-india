@@ -269,17 +269,22 @@ export async function fetchPmjayEligibility(
                 link: s.link,
             }));
         } catch (err: any) {
+            console.log("CATCH ERR: ", err);
+            const errName = err?.name;
             if (
                 err instanceof PmjayAuthError ||
+                errName === "PmjayAuthError" ||
                 err instanceof PmjayUpstreamError ||
-                err instanceof PmjayValidationError
+                errName === "PmjayUpstreamError" ||
+                err instanceof PmjayValidationError ||
+                errName === "PmjayValidationError"
             ) {
                 throw err;
             }
 
             const isTimeout =
-                err.name === "AbortError" ||
-                (err instanceof DOMException && err.name === "AbortError");
+                errName === "AbortError" ||
+                (err instanceof DOMException && errName === "AbortError");
 
             if (isTimeout) {
                 if (attempt < MAX_RETRIES) {
