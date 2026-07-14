@@ -27,6 +27,7 @@ _Built for Bharat. Not just India._
 ## 🔗 Quick Links
 
 - 📖 [Documentation](./docs/)
+- 📝 [Architecture Decision Records (ADRs)](./docs/adr/)
 - 🚀 [Getting Started](#-getting-started)
 - 🤝 [Contributing Guide](./CONTRIBUTING.md)
 - 🌏 [Supported Languages](#-supported-languages)
@@ -101,6 +102,8 @@ SahiDawa operates as a flagship counterfeit intelligence network, prioritizing s
 ---
 
 ## 🏗️ Architecture
+
+Refer to the [Architecture Decision Records (ADRs)](./docs/adr/) for detailed technical design documentation and choices.
 
 ```mermaid
 flowchart TD
