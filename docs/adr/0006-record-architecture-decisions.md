@@ -1,4 +1,4 @@
-# ADR 0000 - Record Architecture Decisions
+# ADR 0006 - Record Architecture Decisions
 
 * Status: accepted
 * Deciders: SahiDawa Core Team

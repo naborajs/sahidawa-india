@@ -2,7 +2,7 @@
 
 > **Single source of truth for architectural decisions.** This folder documents the significant, hard-to-reverse technical choices that shape SahiDawa — and, just as importantly, *why* they were made.
 
-New to ADRs? Start with [ADR 0000 — Record Architecture Decisions](./0000-record-architecture-decisions.md), which establishes this system.
+New to ADRs? Start with [ADR 0006 — Record Architecture Decisions](./0006-record-architecture-decisions.md), which establishes this system.
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ mistakes. ADRs make that reasoning explicit, searchable, and reviewable.
 docs/adr/
 ├── README.md                                    ← You are here (index + process guide)
 ├── template.md                                  ← Copy this to start a new ADR
-├── 0000-record-architecture-decisions.md        ← Foundational ADR (adopting ADRs)
+├── 0006-record-architecture-decisions.md        ← Foundational ADR (adopting ADRs)
 ├── 0001-use-turborepo-for-monorepo.md           ← Individual decisions
 ├── 0002-use-supabase-for-primary-database.md
 └── …                                            ← One file per decision
@@ -48,7 +48,7 @@ docs/adr/
 
 | Resource | Purpose |
 | --- | --- |
-| [`0000-record-architecture-decisions.md`](./0000-record-architecture-decisions.md) | The ADR that establishes this system. |
+| [`0006-record-architecture-decisions.md`](./0006-record-architecture-decisions.md) | The ADR that establishes this system. |
 | [`template.md`](./template.md) | Copy this to start a new ADR. Do not edit it in place. |
 | `00NN-title.md` | Individual accepted/proposed decisions (e.g. `0001-use-turborepo-for-monorepo.md`). |
 
@@ -56,10 +56,10 @@ docs/adr/
 
 ## Numbering rules
 
-- Each ADR gets a **unique, sequential, zero-padded 4-digit number** (`0000`, `0001`, `0002`, …).
+- Each ADR gets a **unique, sequential, zero-padded 4-digit number** (`0001`, `0002`, `0003`, …).
 - Numbers are **never reused**, even if an ADR is rejected or superseded.
-- The filename format is `NNNN-kebab-case-title.md` (e.g. `0006-use-postgres-for-audit-logs.md`).
-- ADR `0000` is reserved for the decision to adopt ADRs themselves.
+- The filename format is `NNNN-kebab-case-title.md` (e.g. `0007-use-postgres-for-audit-logs.md`).
+- ADR `0006` is the foundational ADR that records the decision to adopt ADRs themselves.
 
 ---
 
@@ -143,7 +143,7 @@ Do **not** create an ADR for:
 
 | ADR | Title | Status |
 | --- | --- | --- |
-| [0000](./0000-record-architecture-decisions.md) | Record Architecture Decisions | accepted |
+| [0006](./0006-record-architecture-decisions.md) | Record Architecture Decisions | accepted |
 | [0001](./0001-use-turborepo-for-monorepo.md) | Use Turborepo for Monorepo Management | accepted |
 | [0002](./0002-use-supabase-for-primary-database.md) | Use Supabase for Primary Database and Auth | accepted |
 | [0003](./0003-use-redis-for-cache-aside-pattern.md) | Use Redis for Cache-Aside Pattern | accepted |
