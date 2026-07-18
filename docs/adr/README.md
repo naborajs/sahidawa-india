@@ -1,21 +1,29 @@
-# Architecture Decision Records (ADRs)
+# SahiDawa — Architecture Decision Records
 
-This directory is the **single source of truth** for significant architectural
-decisions in SahiDawa. An Architecture Decision Record (ADR) is a short, focused
-document that captures a single, consequential technical decision: the context
-that motivated it, the options considered, the choice made, and its consequences.
+> **Single source of truth for architectural decisions.** This folder documents the significant, hard-to-reverse technical choices that shape SahiDawa — and, just as importantly, *why* they were made.
 
-ADRs are inspired by established community conventions — primarily
-[Michael Nygard's ADRs](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)
-and the [MADR (Markdown Architectural Decision Records)](https://adr.github.io/madr/)
-template — and follow the lightweight MADR-style format already used across this
-repository.
+New to ADRs? Start with [ADR 0000 — Record Architecture Decisions](./0000-record-architecture-decisions.md), which establishes this system.
 
-> The foundational decision to adopt this system is recorded in
-> [ADR 0000 — Record Architecture Decisions](./0000-record-architecture-decisions.md).
-> Read it first if you are new here.
+## Table of Contents
+
+- [What is an ADR?](#what-is-an-adr)
+- [Why ADRs?](#why-adrs)
+- [Directory layout](#directory-layout)
+- [Numbering rules](#numbering-rules)
+- [Status definitions](#status-definitions)
+- [When to create an ADR](#when-to-create-an-adr)
+- [When not to create an ADR](#when-not-to-create-an-adr)
+- [Review expectations](#review-expectations)
+- [Creating a new ADR](#creating-a-new-adr)
+- [Index of ADRs](#index-of-adrs)
 
 ---
+
+## What is an ADR?
+
+An **Architecture Decision Record (ADR)** is a short, focused document that captures a single consequential technical decision: the context that motivated it, the options considered, the choice made, and its consequences.
+
+ADRs follow the lightweight [MADR](https://adr.github.io/madr/) (Markdown Architectural Decision Records) format already used across this repository, inspired by [Michael Nygard's original ADRs](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions).
 
 ## Why ADRs?
 
@@ -26,7 +34,17 @@ mistakes. ADRs make that reasoning explicit, searchable, and reviewable.
 
 ---
 
-## How to use this directory
+## Directory layout
+
+```text
+docs/adr/
+├── README.md                                    ← You are here (index + process guide)
+├── template.md                                  ← Copy this to start a new ADR
+├── 0000-record-architecture-decisions.md        ← Foundational ADR (adopting ADRs)
+├── 0001-use-turborepo-for-monorepo.md           ← Individual decisions
+├── 0002-use-supabase-for-primary-database.md
+└── …                                            ← One file per decision
+```
 
 | Resource | Purpose |
 | --- | --- |
@@ -61,6 +79,15 @@ Every ADR carries a `Status` field. The lifecycle is:
 Once an ADR reaches `accepted`, its **decision is not changed by editing the file**.
 To change direction, write a *new* ADR that marks the old one `superseded`. This
 keeps the historical record intact.
+
+```mermaid
+flowchart LR
+    A[draft] --> B[proposed]
+    B --> C[accepted]
+    B --> D[rejected]
+    C --> E[deprecated]
+    C --> F[superseded by ADR-XXXX]
+```
 
 ---
 

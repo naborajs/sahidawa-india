@@ -4,7 +4,7 @@
 * Deciders: SahiDawa Core Team
 * Date: 2026-07-18
 
-Technical Story: [ADR Process Guide](../adr/README.md)
+Technical Story: [ADR Process Guide](./README.md)
 
 ## Context and Problem Statement
 
